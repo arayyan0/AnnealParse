@@ -29,6 +29,8 @@ a5 = a1 - a2
 a6 = a1 + a2
 b1, b2 = FindReciprocalVectors(a1, a2)
 # B1, B2 = FindReciprocalVectors(a1-a2, a2)
+if which == "rh1":
+    B1, B2 = FindReciprocalVectors(a1, a2)
 if which == "rh2":
     B1, B2 = FindReciprocalVectors(a1 - a2, a1)
 elif which == "re2":

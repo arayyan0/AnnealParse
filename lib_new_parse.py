@@ -444,7 +444,7 @@ class LSWT:
 
 
 class FreeEnergyDerivatives:
-    Colors = ["turquoise", "limegreen", "orange"]
+    Colors = ["turquoise", "limegreen", "orange", "red"]
 
     def __init__(self, x_list, y_list, factor):
         self.XList = x_list
@@ -460,14 +460,20 @@ class FreeEnergyDerivatives:
         chi = np.gradient(m, self.XList, edge_order=2) / self.Factor
         return chi
 
+    def ThirdDerivative(self):
+        chi = self.PseudoSusceptibility()
+        f = np.gradient(chi, self.XList, edge_order=2) / self.Factor
+        return f
+
     def PlotSweep(self):
         m = self.PseudoMagnetization()
         chi = self.PseudoSusceptibility()
+        f = self.ThirdDerivative()
 
-        functions = [self.YList, chi, m]
+        functions = [self.YList, chi, m, f]
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
         fig.subplots_adjust(top=1.5)
-        axes = [ax1, ax2, ax1.twinx()]
+        axes = [ax1, ax2, ax1.twinx(), ax2.twinx()]
 
         for function, ax, color in zip(functions, axes, self.Colors):
             ax.plot(
@@ -530,10 +536,10 @@ class AnisotropySweep(FreeEnergyDerivatives):
     def __init__(self, fixed_var, fixed_val, swept_par_list, e_list):
         super().__init__(swept_par_list, e_list, 1)
 
-        if (fixed_var == "g"):
-            self.SweptVar = "a"
-        elif (fixed_var == "a"):
+        if (fixed_var == "?"):
             self.SweptVar = "g"
+        elif (fixed_var == "g"):
+            self.SweptVar = "?"
 
         self.SweptParList = swept_par_list
 
@@ -541,11 +547,13 @@ class AnisotropySweep(FreeEnergyDerivatives):
             self.SweptVar)
         self.ChiLabel = r"-$\frac{1}{N}\frac{\mathrm{d}^2E_0}{\mathrm{d}%s^2}\quad$" % (
             self.SweptVar)
+        self.TDLabel = r"-$\frac{1}{N}\frac{\mathrm{d}^3E_0}{\mathrm{d}%s^3}\quad$" % (
+            self.SweptVar)
 
     def PlotLabeledSweep(self):
         fig = self.PlotSweep()
         for ax, color, label in zip(fig.axes, self.Colors,
-                                    [self.ELabel, self.ChiLabel, self.MLabel]):
+                                    [self.ELabel, self.ChiLabel, self.MLabel, self.TDLabel]):
             ax.set_ylabel(
                 label,
                 rotation="horizontal",
@@ -619,7 +627,7 @@ class PhaseDiagram:
         fig, ax = plt.subplots()
         c = ax.pcolormesh(self.X, self.Y, chiz, cmap='inferno')
         cb = plt.colorbar(c, fraction=0.02)
-        cb.ax.set_title(r'$\sqrt{\chi_\phi^2 + \chi_a^2}\quad\;$', fontsize=7)
+        cb.ax.set_title(r'$\sqrt{\chi_\phi^2 + \chi_\alpha^2}\quad\;$', fontsize=7)
         ax.set_xticks(np.linspace(0, 1, 10 + 1), minor=True)
         # ax.xaxis.grid(True,which='major')
         # ax.xaxis.grid(True,which='minor')
@@ -707,7 +715,7 @@ class PhaseDiagram:
         ax.scatter(peak_x[:, 0], peak_x[:, 1], norm(peak_x[:, 2]) * 40,
                    label=r'$\chi_\phi$', marker="o", facecolors="gold", edgecolors="gold")
         ax.scatter(peak_y[:, 0], peak_y[:, 1], norm(peak_y[:, 2]) * 40,
-                   label=r'$\chi_a$', marker="o", facecolors="red", edgecolors="red")
+                   label=r'$\chi_\alpha$', marker="o", facecolors="red", edgecolors="red")
 
         return fig
 # ------------------------------------------------------------------------------
