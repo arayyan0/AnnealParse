@@ -13,6 +13,11 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import matplotlib.patches as ptch
 import glob as glb
+
+from matplotlib.colors import LinearSegmentedColormap
+basic_cols=['#ff0000', '#aeaeae', '#0051ff']
+my_cmap=LinearSegmentedColormap.from_list('mycmap', basic_cols)
+
 np.set_printoptions(precision=5, suppress=True)
 
 pi = np.pi
@@ -80,26 +85,134 @@ def WhichUnitCell(type, sublattice, version):
     return T1, T2, sub_list, color
 
 
-def WhichOrder(order):
-    if order == "zz":
-        T1, T2 = a1 - a2, a1 + a2
-        A, B = (a1 + a2) / 3 - dy, 2 * (a1 + a2) / 3 - 2 * dy
-        sub_list = np.array([A, B, A + a1, B + a2])
-    elif order == "12":
-        T1, T2 = 3 * (a1 - a2), a1 + a2
-        A, B = (a1 + a2) / 3 - dy, 2 * (a1 + a2) / 3 - 2 * dy
+def WhichOrder(order,cluster):
+    #################################FM/AFM####################################
+    if order == "FM" and cluster == "rh2":
+        #note: specifically, l1 = 1, l2 = 1
+        T1, T2 = (a1 - a2), a1
+        A, B = (2*a1-a2)/3, 2*(2*a1-a2)/3
+        sub_list = np.array([A,
+                             B])
+    #################################ZZ####################################
+    # elif order == "ZZ" and cluster == "rh1":
+    #     #note: specifically, l1 = 2, l2 = 1, M1 configuration
+    #     T1, T2 = 2*a1, a2
+    #     A, B = (a1 + a2) / 3, 2 * (a1 + a2) / 3
+    #     sub_list = np.array([A,
+    #                          B,
+    #                          A + a1,
+    #                          B + a1])
+
+    elif order == "ZZ" and cluster == "rh2":
+        #note: specifically, l1 = 1, l2 = 2, M2 configuration
+        T1, T2 = a1 - a2, 2*a1
+        A, B = (2*a1-a2)/3, 2*(2*a1-a2)/3
         sub_list = np.array([A,
                              B,
                              A + a1,
-                             B + a2,
-                             A + T1 / 3,
-                             B + T1 / 3,
-                             A + a1 + T1 / 3,
-                             B + a2 + T1 / 3,
-                             A + 2 * T1 / 3,
-                             B + 2 * T1 / 3,
-                             A + a1 + 2 * T1 / 3,
-                             B + a2 + 2 * T1 / 3])
+                             B + a1])
+    #
+    # elif order == "ZZ" and cluster == "rh1":
+    #     #note: specifically, l1 = 1, l2 = 2, M3 configuration
+    #     T1, T2 = a1, 2*a2
+    #     A, B = (a1 + a2) / 3, 2 * (a1 + a2) / 3
+    #     sub_list = np.array([A,
+    #                          B,
+    #                          A + a2,
+    #                          B + a2])
+    #################################6sites####################################
+    #
+    # elif order == "6" and cluster == "rh1":
+    #     #note: specifically, l1 = 3, l2 = 1
+    #     T1, T2 = 3*a1, a2
+    #     A, B = (a1+a2)/3, 2*(a1+a2)/3
+    #     sub_list = np.array([A,
+    #                          B,
+    #                          A+a1,
+    #                          B+a1,
+    #                          A+2*a1,
+    #                          B+2*a1])
+
+    elif order == "6" and cluster == "rh2":
+        #note: specifically, l1 = 1, l2 = 3
+        T1, T2 = a1 - a2, 3*a1
+        A, B = (2*a1-a2)/3, 2*(2*a1-a2)/3
+        sub_list = np.array([A,
+                             B,
+                             A+a1,
+                             B+a1,
+                             A+2*a1,
+                             B+2*a1])
+
+    # elif order == "6" and cluster == "rh1":
+    #     #note: specifically, l1 = 1, l2 = 3
+    #     T1, T2 = a1, 3*a2
+    #     A, B = (a1+a2)/3, 2*(a1+a2)/3
+    #     sub_list = np.array([A,
+    #                          B,
+    #                          A+a2,
+    #                          B+a2,
+    #                          A+2*a2,
+    #                          B+2*a2])
+    #################################18sites####################################
+    elif order == "18" and cluster == "rh1":
+        T1, T2 = 3*a1, 3*a2
+        A, B = (a1+a2)/3, 2*(a1+a2)/3
+        sub_list = np.array([A + 0*a1 + 0*a2,
+                             B + 0*a1 + 0*a2,
+                             A + 1*a1 + 0*a2,
+                             B + 1*a1 + 0*a2,
+                             A + 2*a1 + 0*a2,
+                             B + 2*a1 + 0*a2,
+                             A + 0*a1 + 1*a2,
+                             B + 0*a1 + 1*a2,
+                             A + 1*a1 + 1*a2,
+                             B + 1*a1 + 1*a2,
+                             A + 2*a1 + 1*a2,
+                             B + 2*a1 + 1*a2,
+                             A + 0*a1 + 2*a2,
+                             B + 0*a1 + 2*a2,
+                             A + 1*a1 + 2*a2,
+                             B + 1*a1 + 2*a2,
+                             A + 2*a1 + 2*a2,
+                             B + 2*a1 + 2*a2])
+    #################################other####################################
+
+    # elif order == "zz" and cluster == "rh2":
+    #     #note: specifically, l1 = 2, l2 = 1
+    #     T1, T2 = 2*(a1 - a2), a1
+    #     A, B = (2*a1-a2)/3, 2*(2*a1-a2)/3
+    #     sub_list = np.array([A,
+    #                          B,
+    #                          A + T1/2,
+    #                          B + T1/2])
+
+    # elif order == "zz" and cluster == "re2":
+    #     #note: specifically, l1 = 1, l2 = 1
+    #     T1, T2 = a1 - a2, a1 + a2
+    #     A, B = (a1 + a2) / 3 - dy, 2 * (a1 + a2) / 3 - 2 * dy
+    #     sub_list = np.array([A,
+    #                          B,
+    #                          A + a1,
+    #                          B + a2])
+    # elif order == "12":
+    #     T1, T2 = 3 * (a1 - a2), a1 + a2
+    #     A, B = (a1 + a2) / 3 - dy, 2 * (a1 + a2) / 3 - 2 * dy
+    #     sub_list = np.array([A,
+    #                          B,
+    #                          A + a1,
+    #                          B + a2,
+    #                          A + T1 / 3,
+    #                          B + T1 / 3,
+    #                          A + a1 + T1 / 3,
+    #                          B + a2 + T1 / 3,
+    #                          A + 2 * T1 / 3,
+    #                          B + 2 * T1 / 3,
+    #                          A + a1 + 2 * T1 / 3,
+    #                          B + a2 + 2 * T1 / 3])
+
+    else:
+        print("put new cluster in WhichOrder function")
     return T1, T2, sub_list
 
 
@@ -182,17 +295,24 @@ def Path(A, B, n):
 
 
 def NewMakeGrid(b1, b2, L1, L2, n):
-    oneD1 = np.array(range(-n * L1, n * L1))  # 1d list of points
-    oneD2 = np.array(range(-n * L2, n * L2))  # 1d list of points
+    oneD1 = np.array(range(-n * L1, n * L1+1))  # 1d list of points
+    oneD2 = np.array(range(-n * L2, n * L2+1))  # 1d list of points
     n1, n2 = np.meshgrid(oneD1, oneD2)  # grid points indexing G1/G2 direction
     KX = n1 * b1[0] / L1 + n2 * b2[0] / L2  # bends meshgrid into shape of BZ
     KY = n1 * b1[1] / L1 + n2 * b2[1] / L2
 
     fig, ax = plt.subplots()
-    ax.plot(KX, KY, '+')
-    ax.plot([0, b1[0]], [0, b1[1]], color='black', linestyle='-', linewidth=2)
-    ax.plot([0, b2[0]], [0, b2[1]], color='black', linestyle='-', linewidth=2)
+    ax.plot(KX, KY, '+',c='grey')
+    # ax.plot([0, b1[0]], [0, b1[1]], color='black', linestyle='-', linewidth=2)
+    # ax.plot([0, b2[0]], [0, b2[1]], color='black', linestyle='-', linewidth=2)
     ax.set_aspect('equal')
+    # ax.set_ylim("off")
+    # ax.axis("equal")
+    # ax.axis(xticks="off")
+    # ax.set_xlabel(r'$k_x$')
+    # ax.set_ylabel(r'$k_y$')
+    ax.set_facecolor('black')
+
     return KX, KY, fig
 # ------------------------------------------------------------------------------
 
@@ -230,28 +350,39 @@ class ReciprocalLattice:
         self.b1, self.b2 = FindReciprocalVectors(a1, a2)
 
         list = [(0, 0), (1 / 2, 0), (1 / 2, 1 / 2), (0, 1 / 2),
-                (2 / 3, 1 / 3), (1 / 3, 2 / 3), (1, 0), (1, 1)]
-        self.G, self.M1, M2, M3, self.K, self.Kp, Gp1, Gp2 = [IndexToPosition(
+                (2 / 3, 1 / 3), (1 / 3, 2 / 3), (-1 / 3 , 1 / 3), (1, 0), (1, 1),(-1/2,1/2)]
+        self.G, self.M1, M2, M3, self.K, self.Kp, self.Kpp, Gp1, Gp2, X = [IndexToPosition(
             self.b1, self.b2, [0], [*i, 0]) for i in list]
+
+        # print(self.M1)
+        # print(M2)
+        # print(M3)
 
         self.Sym = {
             "G": self.G,
             "M1": self.M1,
+            "-M1": -self.M1,
             "K": self.K,
             "M2": M2,
             "Kp": self.Kp,
             "M3": M3,
             "Gp1": Gp1,
-            "Gp2": Gp2}
+            "Gp2": Gp2,
+            "Kpp": self.Kpp,
+            "X":X}
         self.SymTeX = {
             "G": r"$\Gamma$",
             "M1": "$M_1$",
+            "-M1": "$-M_1$",
             "K": "$K$",
             "M2": "$M_2$",
             "Kp": "$K'$",
             "M3": "$M_3$",
             "Gp1": r"$\Gamma'_1$",
-            "Gp2": "$\Gamma'_2$"}
+            "Gp2": "$\Gamma'_2$",
+            "Kpp": r"$K''$",
+            "X": r"$X$"}
+        # print(self.M1, self.K)
 
     def MakeKPath(self, sym_points, n):
         sym_labels = list(map(self.SymTeX.get, sym_points))
@@ -266,7 +397,7 @@ class ReciprocalLattice:
             kpath.append(path)
             l = l + length
             tick_mark.append(l)
-        return [np.concatenate(np.array(kpath)), tick_mark, sym_labels]
+        return np.concatenate(np.array(kpath,dtype=object)), tick_mark, sym_labels
 # ------------------------------------------------------------------------------
 
 
@@ -279,15 +410,14 @@ class LSWT:
         self.Spins = s_config
         self.Sites = s_config.shape[0]
 
-        self.Order = c_parameters
-        self.T1, self.T2, self.SublatticeVectors = WhichOrder(self.Order)
+        self.Order, self.Cluster = c_parameters
+        self.T1, self.T2, self.SublatticeVectors = WhichOrder(self.Order, self.Cluster)
 
-        self.Spins = s_config
 
-        self.BondIndices, self.BondHamiltonians, self.BondDiffs = [], [], []
+        self.BondIndices, self.BondHamiltonians, self.BondDiffs, self.BondType = [], [], [], []
         self.Construct1DArrays()
 
-        self.ClusterEnergy = sum(self.HzzMatrixElements) / 2
+        self.ClusterEnergy = sum(self.HzzMatrixElements)/2
 
     def CreateHamiltonians(self, h_parameters):
         [Kx, Ky, Kz], [Gx, Gy, Gz], Gp, J1 = h_parameters
@@ -300,22 +430,25 @@ class LSWT:
         self.Hz = np.array([[J1, Gz, Gp],
                             [Gz, J1, Gp],
                             [Gp, Gp, J1 + Kz]])
+        # print(self.Hx)
 
     def Construct1DArrays(self):
         def determine_bond_characteristics(s1, s2):
             d = self.SublatticeVectors[s1] - self.SublatticeVectors[s2]
-            for whichd, H in zip([dx, dy, dz], [self.Hx, self.Hy, self.Hz]):
+            for whichd, H, type in zip([dx, dy, dz], [self.Hx, self.Hy, self.Hz], ['x','y','z']):
                 [_, bool1], [_, bool2] = [EquivalentBravais(self.T1, self.T2,
                                                             d - (pmd), np.array([0, 0]))
                                           for pmd in [whichd, -whichd]]
                 if bool1:
                     self.BondIndices.append([s1, s2])
                     self.BondHamiltonians.append(H)
-                    self.BondDiffs.append(whichd)
+                    self.BondDiffs.append(+whichd)
+                    self.BondType.append(type)
                 elif bool2:
                     self.BondIndices.append([s1, s2])
                     self.BondHamiltonians.append(H)
                     self.BondDiffs.append(-whichd)
+                    self.BondType.append(type)
             return 0
 
         lst = it.product(range(self.Sites), range(self.Sites))
@@ -323,37 +456,71 @@ class LSWT:
         self.BondIndices, self.BondHamiltonians, self.BondDiffs = [
             np.array(x) for x in [self.BondIndices, self.BondHamiltonians, self.BondDiffs]]
 
-        bond_spins = np.array([[self.Spins[i], self.Spins[j]]
-                               for i, j in self.BondIndices[:, :]])
-        bond_rotations = np.array([[LocalRotation(Si), LocalRotation(Sj)]
-                                   for Si, Sj in bond_spins[:, :]])
+        # for i in range(len(self.BondIndices)):
+        #     print(self.BondIndices[i], self.BondDiffs[i],self.BondType[i])
+        #     print("..........")
 
-        transformed_bond_hamiltonians = np.einsum('abc,acd,aed->abe', bond_rotations[:, 0, :],
-                                                  self.BondHamiltonians, bond_rotations[:, 1, :])
+        self.bond_spins = np.array([[self.Spins[i], self.Spins[j]]
+                               for i, j in self.BondIndices[:, :]])
+        self.bond_rotations = np.array([ [LocalRotation(Si), LocalRotation(Sj)]
+                                    for Si, Sj in self.bond_spins[:, :]])
+
+        self.transformed_bond_hamiltonians = np.einsum('abc,acd,aed->abe', self.bond_rotations[:, 0, :],
+                                                  self.BondHamiltonians, self.bond_rotations[:, 1, :])
+
+        # new_energies = np.einsum('ab,abc,ac->a',bond_spins[:,0],transformed_bond_hamiltonians,bond_spins[:,1])
+        # print(np.sum(new_energies)/self.Sites)
+
 
         def parse_hamiltonian(H):
-            # fstar and gstar are complex conjugates of f and g as defined in pg 12 of LSWT notes
-            # gstar = A+diag, fstar = B in Wonjune's notes
-            fstar = (H[1, 1] - H[2, 2] + 1j * (H[1, 2] + H[2, 1])) / 2
-            gstar = (H[1, 1] + H[2, 2] - 1j * (H[1, 2] - H[2, 1])) / 2
-            return np.array([fstar, gstar, np.conjugate(gstar)])
+            A = ( H[0, 0] + H[1, 1] + 1j * (H[1, 0] - H[0, 1]) )/2
+            B = ( H[0, 0] - H[1, 1] + 1j * (H[1, 0] + H[0, 1]) )/2
+            return np.array([A, B])
 
-        self.FGStarGMatrixElements = np.array(
-            [parse_hamiltonian(H) for H in transformed_bond_hamiltonians])
-        self.HzzMatrixElements = transformed_bond_hamiltonians[:, 2, 2]
+        self.ABElements = np.array(
+            [parse_hamiltonian(H) for H in self.transformed_bond_hamiltonians])
+        # print(self.ABElements[:,1])
+        self.HzzMatrixElements = self.transformed_bond_hamiltonians[:, 2, 2]
 
-    def ObtainMagnonSpectrumAndDiagonalizer(self, klst):
-        phase_matrix_elements = np.exp(-1j *
-                                       np.einsum('ab,cb->ac', self.BondDiffs, klst))
-        b_matrix_elements = np.einsum(
-            'a,ac->ac', self.FGStarGMatrixElements[:, 0], phase_matrix_elements)
+        # for i in range(len(self.HzzMatrixElements)):
+            # print(i, self.BondIndices[i], self.HzzMatrixElements[i])
+
+    def ObtainMagnonSpectrumAndDiagonalizer(self, klst,angle,offset):
+
+        def R2(theta):
+            s, c = np.sin(theta), np.cos(theta)
+            return np.array([[c, -s], [s, c]])
+
+        R = R2(angle)
+
+        self.klst = np.einsum('ab,cb->ca', R, np.array(klst))
+
+        self.phase_matrix_elements = np.exp(-1j * np.dot(self.BondDiffs, self.klst.T))
+        self.other_phase_matrix_elements = np.exp(-1j * np.dot(self.BondDiffs, -self.klst.T))
+        # print(self.phase_matrix_elements.shape)
+
+        # ikk = 155
+        # jkk = 3
+        # r = self.BondDiffs[jkk,:]
+        # k = self.klst[ikk,:]
+        # print(f"swag{self.phase_matrix_elements[jkk,ikk] - np.exp(1j*k.dot(r))}")
+        # print(f"ga{self.ABElements[jkk,0]*self.phase_matrix_elements[jkk,ikk] }")
+
         a_matrix_elements = np.einsum(
-            'a,ac->ac', self.FGStarGMatrixElements[:, 1], phase_matrix_elements)
-        atminus_matrix_elements = np.einsum(
-            'a,ac->ac', self.FGStarGMatrixElements[:, 2], phase_matrix_elements)
+            'a,ac->ac', self.ABElements[:, 0], self.phase_matrix_elements)
+        b_matrix_elements = np.einsum(
+            'a,ac->ac', self.ABElements[:, 1], self.phase_matrix_elements)
+        c_matrix_elements = np.einsum(
+            'a,ac->ac', np.conj(self.ABElements[:, 1]), self.phase_matrix_elements)
+        d_matrix_elements = np.einsum(
+            'a,ac->ac', np.conj(self.ABElements[:, 0]), self.phase_matrix_elements)
 
-        self.Bk, self.Ak, self.ATkminus = np.zeros(
-            (3, len(klst), self.Sites, self.Sites), dtype=complex)
+        e_matrix_elements = np.einsum(
+            'a,ac->ac', self.ABElements[:, 0], self.other_phase_matrix_elements)
+
+        self.Ak, self.Bk, self.Ck, self.Dk, self.Ek = np.zeros(
+            (5, len(klst), self.Sites, self.Sites), dtype=complex)
+
         self.Hk = np.zeros(
             (len(klst),
              2 * self.Sites,
@@ -361,80 +528,138 @@ class LSWT:
             dtype=complex)
 
         def fill_matrix(i, j):
+            # self.BondIndices is of shape (number of bonds, 2 (two site indices) )
+            # j indexes the bond
+            # i indexes the k point
             s1, s2 = self.BondIndices[j, :]
+            self.Ak[i, s1, s2] += a_matrix_elements[j, i] #- self.HzzMatrixElements[j]
             self.Bk[i, s1, s2] += b_matrix_elements[j, i]
-            self.Ak[i, s1, s2] += a_matrix_elements[j, i]
-            self.ATkminus[i, s1, s2] += atminus_matrix_elements[j, i]
+            self.Ck[i, s1, s2] += c_matrix_elements[j, i]
+            self.Dk[i, s1, s2] += d_matrix_elements[j, i] #- self.HzzMatrixElements[j]
+            self.Ek[i, s1, s2] += e_matrix_elements[j, i] #- self.HzzMatrixElements[j]
             return 0
+
+        #shape of self.HzzMatrixElements is (number of bonds, )
+        # print(self.HzzMatrixElements)
+        Adiag = np.diag([sum(self.HzzMatrixElements[i:i + 3])
+                         for i in range(self.Sites)])
+        # print([sum(self.HzzMatrixElements[i:i + 3])
+        #                  for i in range(self.Sites)])
+        # print(Adiag)
 
         ones = np.array([1 for i in range(self.Sites)])
         G = np.diag(np.concatenate((ones, -ones)))
-        Adiag = np.diag([sum(self.HzzMatrixElements[i:i + 3])
-                         for i in range(self.Sites)])
-        # print(Adiag)
-
+        # print(klst)
+        #
         def diagonalize_given_k(i):
-            # print(klst[i])
             crap = [
                 fill_matrix(
                     i, j) for j in range(
                     self.BondIndices.shape[0])]
-            self.Ak[i] = self.Ak[i] - Adiag + 1e-7 * np.eye(*self.Ak[i].shape)
-
-            self.ATkminus[i] = self.ATkminus[i] - Adiag
-            self.Hk[i] = np.block([
-                [self.Ak[i], self.Bk[i]],
-                [np.conjugate(self.Bk[i].T), self.ATkminus[i]]
-            ])
-            # print(np.linalg.eigvals(self.Ak[i]-self.Bk[i]))
-            # print(self.Hk[i])
-            try:
-                Mk = la.cholesky(self.Hk[i])
-            except BaseException:
-                print("cholesky decomposition failed.")
-                tempval, tempvec = la.eigh(self.Hk[i])
-                sqtempdiag = np.diag(tempval)
-                Mk = np.einsum(
-                    'ab,bc,dc->ad',
-                    tempvec,
-                    np.sqrt(
-                        self.Hk[i]),
-                    np.conjugate(tempvec))
             # print(self.Ak[i])
             # print(self.Bk[i])
-            # print(self.ATkminus[i])
+            # print(self.Ck[i])
+            # print(self.Dk[i])
 
-            eigval, eigvec = la.eigh(
-                np.einsum('ab,bc,dc->ad', Mk, G, np.conjugate(Mk)))
-            idx = eigval.argsort()[::-1]
-            dispersion, Uk = eigval[idx], eigvec[:, idx]
+            self.Ak[i] = self.Ak[i] - Adiag + offset * np.eye(*self.Ak[i].shape)# - Adiag
+            self.Dk[i] = self.Dk[i] - Adiag + offset * np.eye(*self.Ak[i].shape)# - Adiag
+            self.Ek[i] = self.Ek[i] - Adiag + offset * np.eye(*self.Ak[i].shape)# - Adiag
+            # print(self.Ak[i])
 
-            Tk = la.solve_triangular(
-                Mk,
-                np.einsum(
-                    'ab,bc->ac',
-                    Uk,
-                    np.sqrt(
-                        np.einsum(
-                            'ab,bc->ac',
-                            G,
-                            np.diag(dispersion)))))
-            # print(np.einsum('ab,bc->ac',G,np.diag(dispersion)) -
-            # np.einsum('ba,bc,cd->ad',np.conjugate(Tk),self.Hk[i],Tk))#checks
-            # that diagonalization is all good
-            self.Dispersions[i, :] = dispersion[:self.Sites]
-            self.Tk[i, :, :] = Tk[:self.Sites, :self.Sites]
+            eps =  10E-12
+            A_is_hermit = np.all(np.abs(self.Ak[i] - np.conj(self.Ak[i].T)) <= eps)
+            B_is_C_hermit = np.all(np.abs(self.Bk[i] - np.conj(self.Ck[i].T)) <= eps)
+            D_is_hermit = np.all(np.abs(self.Dk[i] - np.conj(self.Dk[i].T)) <= eps)
+
+            diag_cond = np.all(np.abs(self.Dk[i] - self.Ek[i].T )<= eps)
+
+            if not A_is_hermit:
+                print("A != A dagger")
+            if not B_is_C_hermit:
+                print("B != C dagger")
+            if not D_is_hermit:
+                print("D != D dagger")
+            if not diag_cond:
+                print("check the diagonals!")
+
+            # self.Hk[i] = np.block([
+            #     [self.Ak[i], self.Bk[i]],
+            #     [self.Ck[i], self.Dk[i]]
+            # ])
+            self.Hk[i] = np.block([
+                [self.Ak[i]           , self.Bk[i]],
+                [np.conj(self.Bk[i].T), self.Ek[i].T]
+            ])
+
+            # Method 1: straightforward diagonalization of G Hk
+            newmat = np.matmul(G, self.Hk[i])
+
+            dispersion, vectors = np.linalg.eig(newmat)
+            dispersion = -np.sort(-dispersion)
+            # print(np.imag(dispersion))
+
+            # if not is_normal:
+                # print("H not normal")
+
+            # Method 2: straightforward diagonalization of Hk
+            # dispersion, vectors = np.linalg.eigh(self.Hk[i])
+            # dispersion = np.sort(dispersion)
+
+
+            # Method 3: straightforward diagonalization of G Hk
+            # try:
+                # Mk = la.cholesky(self.Hk[i])
+                # print("cholesky decomposition passed.")
+            # except BaseException:
+                # print("cholesky decomposition failed.")
+                # Mk  = np.empty(self.Hk[i].shape)
+                # tempval, tempvec = la.eigh(self.Hk[i])
+                # sqtempdiag = np.diag(tempval)
+                # Mk = np.einsum(
+                    # 'ab,bc,dc->ad',
+                    # tempvec,
+                    # np.sqrt(
+                        # self.Hk[i]),
+                    # np.conjugate(tempvec))
+            #     # print(tempval)
+
+            # eigval, eigvec = la.eigh(
+                # np.einsum('ab,bc,dc->ad', Mk, G, np.conjugate(Mk)))
+            # idx = eigval.argsort()[::-1]
+            # dispersion, Uk = eigval[idx], eigvec[:, idx]
+            # # print(dispersion)
+
+            # Tk = la.solve_triangular(
+            #     Mk,
+            #     np.einsum(
+            #         'ab,bc->ac',
+            #         Uk,
+            #         np.sqrt(
+            #             np.einsum(
+            #                 'ab,bc->ac',
+            #                 G,
+            #                 np.diag(dispersion)))))
+
+            self.Dispersions[i, :] = dispersion[:self.Sites]/2
+            # self.Tk[i, :, :] = Tk[:self.Sites, :self.Sites]
             return 0
-
-        self.Dispersions = np.empty((len(klst), self.Sites), dtype=float)
-        self.Tk = np.empty((len(klst), self.Sites, self.Sites), dtype=complex)
+        #
+        self.Dispersions = np.empty((len(klst), self.Sites), dtype=np.double)
+        # self.Tk = np.empty((len(klst), self.Sites, self.Sites), dtype=complex)
         crap = [diagonalize_given_k(i) for i in range(len(klst))]
+
+        self.Dispersions[np.abs(self.Dispersions) < 10E-12] = 0
+
+        if not np.all(self.Dispersions >= 0):
+            print("Warning: non-trivial negative eigenvalues.")
 
     def PlotMagnonDispersions(self, kpath, tick_mark, sym_labels):
         n = len(kpath)
         fig, ax = plt.subplots()
         for i in range(3):
             ax.plot(range(len(kpath)), self.Dispersions)
+        if not np.all(self.Dispersions >= 0):
+            plt.title("Warning: non-trivial negative eigenvalues.")
 
         ax.axhline(y=0, color='0.75', linestyle=':')
         ax.set_ylabel(r'$\omega_{n\mathbf{k}}$', usetex=True)
@@ -444,7 +669,9 @@ class LSWT:
 
 
 class FreeEnergyDerivatives:
-    Colors = ["turquoise", "limegreen", "orange", "red"]
+    Colors = ["blue", "magenta", "green"] #nondark background
+    # Colors = ["turquoise", "limegreen", "orange"] #dark background
+    # Colors = ["turquoise", "limegreen", "orange", "red"] #dark background
 
     def __init__(self, x_list, y_list, factor):
         self.XList = x_list
@@ -468,22 +695,30 @@ class FreeEnergyDerivatives:
     def PlotSweep(self):
         m = self.PseudoMagnetization()
         chi = self.PseudoSusceptibility()
-        f = self.ThirdDerivative()
+        # f = self.ThirdDerivative()
 
-        functions = [self.YList, chi, m, f]
+        functions = [self.YList, chi, m]
+        # functions = [self.YList, chi, m, f]
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
         fig.subplots_adjust(top=1.5)
-        axes = [ax1, ax2, ax1.twinx(), ax2.twinx()]
+        axes = [ax1, ax2, ax2.twinx()]
+        # axes = [ax1, ax2, ax1.twinx(), ax2.twinx()]
 
         for function, ax, color in zip(functions, axes, self.Colors):
-            ax.plot(
+            ax.scatter(
                 self.XList,
                 function,
                 marker="o",
-                color=color,
-                clip_on=False)
+                clip_on=False,
+                s=20,
+                facecolors='none',
+                edgecolors=color,
+                linewidth=1.5)
             ax.tick_params(axis="y", colors=color)
-        ax2.axhline(color=self.Colors[1], ls="-.")
+        axes[2].axhline(c='gray',ls="-.")
+        # ax2.axhline(color=self.Colors[1], ls="-.")
+        ax2.set_ylim([-0.25,1.25])
+        axes[2].set_ylim([-0.25,1.25])
 
         # ax2.set_ylim([-10,10])
 
@@ -543,22 +778,22 @@ class AnisotropySweep(FreeEnergyDerivatives):
 
         self.SweptParList = swept_par_list
 
-        self.MLabel = r"-$\frac{1}{N}\frac{\mathrm{d}E_0}{\mathrm{d}%s}$" % (
+        self.MLabel = r"$-\frac{1}{N}\frac{\mathrm{d}E_0}{\mathrm{d}%s}$" % (
             self.SweptVar)
-        self.ChiLabel = r"-$\frac{1}{N}\frac{\mathrm{d}^2E_0}{\mathrm{d}%s^2}\quad$" % (
+        self.ChiLabel = r"$-\frac{1}{N}\frac{\mathrm{d}^2E_0}{\mathrm{d}%s^2}\quad$" % (
             self.SweptVar)
-        self.TDLabel = r"-$\frac{1}{N}\frac{\mathrm{d}^3E_0}{\mathrm{d}%s^3}\quad$" % (
-            self.SweptVar)
+        # self.TDLabel = r"-$\frac{1}{N}\frac{\mathrm{d}^3E_0}{\mathrm{d}%s^3}\quad$" % (
+            # self.SweptVar)
 
     def PlotLabeledSweep(self):
         fig = self.PlotSweep()
         for ax, color, label in zip(fig.axes, self.Colors,
-                                    [self.ELabel, self.ChiLabel, self.MLabel, self.TDLabel]):
+                                    [self.ELabel, self.ChiLabel, self.MLabel]):#, self.TDLabel]):
             ax.set_ylabel(
                 label,
                 rotation="horizontal",
                 fontsize=12,
-                labelpad=15,
+                labelpad=10,
                 color=color)
         fig.axes[1].set_xlabel(r"$%s$" % self.SweptVar)
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -731,6 +966,7 @@ class SpinConfiguration:
             self.Type, self.S, self.Cluster)
 
     def PlotSSF(self):
+        scale=2*pi
         B1, B2 = FindReciprocalVectors(self.T1, self.T2)
         # may be modified later...i dont need meshgrid
         KX, KY, gggg = NewMakeGrid(B1, B2, self.L1, self.L2, 2)
@@ -738,31 +974,40 @@ class SpinConfiguration:
         k = np.stack((kx, ky)).T
 
         SdotS_mat = np.einsum("ij,kj", self.SpinsABC, self.SpinsABC)
-        s_k = np.empty(len(k))
+        s_kflat = np.empty(len(k))
+
+        fig, ax = plt.subplots()
+
         for i, kv in enumerate(k):
             phase_i = np.exp(1j * np.einsum('i,ji', kv, self.SpinLocations))
             phase_j = np.exp(-1j * np.einsum('i,ji', kv, self.SpinLocations))
             phase_mat = np.einsum('i,j->ij', phase_i, phase_j)
-            s_k[i] = (SdotS_mat * phase_mat).sum() / \
-                self.SpinLocations.shape[0]
+            s_kflat[i] = np.abs((SdotS_mat * phase_mat).sum() / \
+                self.SpinLocations.shape[0]/self.SpinLocations.shape[0])
+            ax.annotate(f'$\quad${s_kflat[i]:.6f}', kv/scale,fontsize=2 )
 
-        s_k = np.reshape(s_k, KX.shape)
-        fig, ax = plt.subplots()
-        c = ax.scatter(KX, KY, c=s_k, cmap='viridis', edgecolors="none")
-        cbar = fig.colorbar(c)
-        cbar.set_label('$s_k$', labelpad=10)
+        s_k = np.reshape(s_kflat, KX.shape)
+        c = ax.scatter(KX/scale, KY/scale, c=s_k, cmap='afmhot', edgecolors="none")
+        ax.scatter(KX/scale, KY/scale, marker="+", color='gray', s=2)
+
+        cbar = fig.colorbar(c, fraction=0.05)
+        cbar.set_label(r'$s_\vec{k}/N$',labelpad=9, rotation=0)
         ax.axis("equal")
-        ax.axis("off")
+        # ax.axis("off")
+        ax.set_facecolor('black')
 
         b1, b2 = FindReciprocalVectors(a1, a2)
         bz2 = ptch.RegularPolygon(
             (0, 0), 6, np.linalg.norm(
-                (2 * b1 + b2) / 3), pi / 6, fill=False)
-        bz3 = ptch.RegularPolygon((0, 0), 6, np.linalg.norm(b1), 0, fill=False)
-        fig.axes[0].add_patch(bz2)
-        fig.axes[0].add_patch(bz3)
-        fig.axes[0].set_xlim(-6.5, 6.5)
-        fig.axes[0].set_ylim(-7.5, 7.5)
+                (2 * b1 + b2) / 3)/2/pi, pi / 6, fill=False,color='gray')
+        bz3 = ptch.RegularPolygon((0, 0), 6, np.linalg.norm(b1)/2/pi, 0, fill=False,\
+                                  color='gray')
+        ax.add_patch(bz2)
+        ax.add_patch(bz3)
+        ax.set_xlim(-6.5/scale, 6.5/scale)
+        ax.set_ylim(-7.5/scale, 7.5/scale)
+        ax.set_xlabel(r'$k_x/2\pi$')
+        ax.set_ylabel(r'$k_y/2\pi$',rotation=0)
         return fig
 
     def PlotSpins(self):
@@ -783,12 +1028,21 @@ class SpinConfiguration:
             self.SpinsABC, (self.L1, self.L2, self.S, 3))
         #
         fig, ax = plt.subplots()
+        for x in range(self.L1):
+            for y in range(self.L2):
+                center1 = x * self.T1 + y * self.T2
+                hex1 = ptch.RegularPolygon(
+                    center1, 6, 1 / sqrt(3), 0, fill=False, linewidth=0.1)
+                ax.add_patch(hex1)
+                hex2 = ptch.RegularPolygon(
+                    center1 + a1, 6, 1 / sqrt(3), 0, fill=False, linewidth=0.1)
+                ax.add_patch(hex2)
         # # plt.figure(figsize=(8,8))
         mandem = np.arccos(
             np.clip(mat_spin_config[:, :, :, 2], -1, 1)) / np.pi * 180
         norm = clr.Normalize()
         norm.autoscale(mandem)
-        cm = plt.cm.coolwarm
+        cm = my_cmap
         for i in range(self.S):
             # c = ax.quiver(RX_list[i], RY_list[i], mat_spin_config[:,:,i,0], mat_spin_config[:,:,i,1], mandem[:,:,i], cmap=cm, norm=norm, scale=50,minlength=1.5)#, scale=None,headwidth=1,headlength=1)
             #
@@ -807,32 +1061,29 @@ class SpinConfiguration:
                                  i],
                           cmap=cm,
                           norm=norm,
-                          scale=15,
-                          minlength=2)  # , scale=None,headwidth=1,headlength=1)
+                          scale=12,
+                          headwidth=5,
+                          minlength=1,
+                          pivot='mid')  # , scale=None,headwidth=1,headlength=1)
         sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
         cb = plt.colorbar(
             sm,
-            fraction=0.08,
-            pad=0.15,
-            orientation='horizontal')
-        cb.ax.set_title(r'$\;\qquad\theta_c$')
+            fraction=0.033,
+            pad=0.00,
+            orientation='vertical')
+
+        cb.set_label(r'$\;\qquad\theta_{\mathbf{c}^*}$', labelpad=1, rotation=0)
+        # cb.ax.set_title(r'$\;\qquad\theta_{\mathbf{c}^*}$')
         #
-        for x in range(self.L1):
-            for y in range(self.L2):
-                center1 = x * self.T1 + y * self.T2
-                hex1 = ptch.RegularPolygon(
-                    center1, 6, 1 / sqrt(3), 0, fill=False, linewidth=0.2)
-                ax.add_patch(hex1)
-                hex2 = ptch.RegularPolygon(
-                    center1 + a1, 6, 1 / sqrt(3), 0, fill=False, linewidth=0.2)
-                ax.add_patch(hex2)
         ax.axis("off")
+        plt.axis('scaled')
+
         #
-        ax.plot([0, self.T1[0], 0, self.T2[0]], [0, self.T1[1], 0, self.T2[1]])
-        ax.plot([self.T1[0], self.T1[0] +
-                 self.T2[0], self.T2[0], self.T1[0] +
-                 self.T2[0]], [self.T1[1], self.T1[1] +
-                               self.T2[1], self.T2[1], self.T1[1] +
-                               self.T2[1]])
+        # ax.plot([0, self.T1[0], 0, self.T2[0]], [0, self.T1[1], 0, self.T2[1]])
+        # ax.plot([self.T1[0], self.T1[0] +
+        #          self.T2[0], self.T2[0], self.T1[0] +
+        #          self.T2[0]], [self.T1[1], self.T1[1] +
+        #                        self.T2[1], self.T2[1], self.T1[1] +
+        #                        self.T2[1]])
         return fig
 #
