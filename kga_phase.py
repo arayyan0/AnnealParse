@@ -12,7 +12,6 @@ import os
 
 plt.style.use('dark_background')
 
-
 s = 4
 l1 = 12
 l2 = 6
@@ -42,17 +41,17 @@ for folder in folder_list:
     sweep_list.append(sweep)
 
 phase_space = PhaseDiagram(p_list, sweep_list)
-fig = phase_space.PlotPeaks(0.1,0.1)
+fig = phase_space.PlotPeaks(0.00000,0.00000)
 ax = fig.axes[0]
 ax.set_xlim(0,1)
 ax.set_ylim(-0.5,1)
 
 ax.set_xlabel(r"$\phi/\pi$", rotation="horizontal", fontsize=12, labelpad=12)
-ax.set_ylabel(r"$a$", rotation="horizontal", fontsize=12, labelpad=16)
+ax.set_ylabel(r"$\alpha$", rotation="horizontal", fontsize=12, labelpad=16)
 ax.legend(loc="lower right", markerscale=1, fontsize=12)
 
 fig.tight_layout(rect=[0,0.03,1,0.95])
 
-fig.savefig(plot_dir+ "/phase_diagram_v_%i.pdf"%v)
+# fig.savefig(plot_dir+ "/phase_diagrammm_v_%i.pdf"%v)
 plt.show()
 plt.close()

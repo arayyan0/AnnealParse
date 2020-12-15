@@ -5,7 +5,7 @@
 
 import glob
 import os
-from lib_new_parse import WhichUnitCell, LocalRotation, FindReciprocalVectors, NewMakeGrid, pi, a1, a2
+from lib_new_parse import WhichUnitCell, LocalRotation, FindReciprocalVectors, NewMakeGrid, pi, a1, a2, SpinConfiguration
 import numpy as np
 from math import sqrt
 import matplotlib.colors as clr
@@ -136,14 +136,14 @@ def func(v):
     warnings.filterwarnings('ignore')
     xyz_to_abc = LocalRotation(np.array([1,1,1])/sqrt(3))
 
-    s = 2
-    l1 = 3
-    l2 = 3
-    Tfp= 300
+    s = 4
+    l1 = 12
+    l2 = 6
+    Tfp= 200
     clus = 2
     g = 0.5
 
-    for p in [0.25]:
+    for p in [0.4]:
         data_dir = "../../raw_data/kg/gk=gg_ak=ag/%i_%i_%i/c_%i/Tfp_%i/g_%.3f_p_%.3f/v_%i/"%(s, l1, l2,clus,Tfp,g,p,v)
         print(data_dir)
         assert(os.path.exists(data_dir)),"Your data directory does not exist."
@@ -174,97 +174,20 @@ def func(v):
                 flat_spin_loc[i, :] = x*T1 + y*T2 + sublattice_vectors[sub]
                 flat_spin_config[i, :] = rot_spin
 
-            a1, a2 = np.array([1/2, sqrt(3)/2]), np.array([-1/2, sqrt(3)/2])
-            #--------------------------Creating my k-space grid-------------------------
-            b1, b2 = FindReciprocalVectors(a1, a2)
-            B1, B2 = FindReciprocalVectors(T1, T2)
-            # KX, KY, gggg = NewMakeGrid(B1, B2, l1, l2,2) #may be modified later...i dont need meshgrid
-            KX, KY, gggg = NewMakeGrid(B1, B2, l1, l2,2) #may be modified later...i dont need meshgrid
-            kx, ky = [np.reshape(x, -1) for x in [KX, KY]]
-            k = np.stack((kx,ky)).T
+            spinstuff = SpinConfiguration(flat_spin_loc, flat_spin_config, [type, s, l1, l2, clus])
 
-            ## # keep vectors only within second brillouin zone
-            ## klist = list(k)
-            ## print()
-            ## for i, kv in enumerate(klist):
-            ##     if np.linalg.norm(kv) > np.linalg.norm(b1):
-            ##         klist.pop(i)
-            ## k = np.array(klist)
-            # ------------------------------Calculate SSF--------------------------------
-            dot_mat = np.einsum("ij,kj", flat_spin_config, flat_spin_config)
-
-            s_k = np.empty(len(k))
-            for i, kv in enumerate(k):
-                phase_i = np.exp(1j * np.einsum('i,ji', kv, flat_spin_loc))
-                phase_j = np.exp(-1j * np.einsum('i,ji', kv, flat_spin_loc))
-                phase_mat = np.einsum('i,j->ij', phase_i, phase_j)
-                s_k[i] = (dot_mat * phase_mat).sum()/sites
-
-            # ---------------------------------Plot SSF----------------------------------
-            # print(s_k)
-            s_k = np.reshape(s_k, KX.shape)
-            fig, ax = plt.subplots()
-            c = ax.scatter(KX, KY, c=s_k, cmap='copper', edgecolors="none")
-            cbar = fig.colorbar(c)
-            cbar.set_label('$s_k$', labelpad=10)
-            ax.axis("equal")
-            ax.axis("off")
-
-            bz2 = ptch.RegularPolygon((0,0), 6, np.linalg.norm((2*b1+b2)/3), pi/6, fill = False)
-            bz3 = ptch.RegularPolygon((0,0), 6, np.linalg.norm(b1), 0, fill = False)
-            fig.axes[0].add_patch(bz2)
-            fig.axes[0].add_patch(bz3)
-            fig.axes[0].set_xlim(-6.5, 6.5)
-            fig.axes[0].set_ylim(-7.5, 7.5)
-
-            # fig.savefig(plot_dir + "ssf_a_%.3f.pdf"%a)
-            plt.show()
+            fig = spinstuff.PlotSSF()
+            # fig.show()
+            fig.savefig(plot_dir + f"ssf_a_{a:.3f}.pdf")
             plt.close()
-            # # ----------------------Spit out spin configuration--------------------------
-            oneD1 = np.array(range(0, l1))
-            oneD2 = np.array(range(0, l2))
-            n1, n2 = np.meshgrid(oneD1,oneD2)
 
-            RX_list = np.empty((s), dtype=np.ndarray)
-            RY_list = np.empty((s), dtype=np.ndarray)
-
-            for i in range(s):
-                RX_list[i] = sublattice_vectors[i,0]+ n1*T1[0] + n2*T2[0]
-                RY_list[i] = sublattice_vectors[i,1]+ n1*T1[1] + n2*T2[1]
-
-            mat_spin_config = np.reshape(flat_spin_config, (l1, l2, s,3))
-
-            fig, ax = plt.subplots()
-            # plt.figure(figsize=(8,8))
-            mandem = np.arccos(np.clip(mat_spin_config[:,:,:,2],-1,1))/np.pi*180
-            norm = clr.Normalize()
-            norm.autoscale(mandem)
-            cm = plt.cm.coolwarm
-            for i in range(s):
-                c = ax.quiver(RX_list[i], RY_list[i], mat_spin_config[:,:,i,0], mat_spin_config[:,:,i,1], mandem[:,:,i], cmap=cm, norm=norm, scale=50,minlength=1.5)#, scale=None,headwidth=1,headlength=1)
-
-                # c = ax.quiver(RX_list[i], RY_list[i], mat_spin_config[:,:,i,0], mat_spin_config[:,:,i,1], mandem[:,:,i], cmap=cm, norm=norm, scale=15,minlength=2)#, scale=None,headwidth=1,headlength=1)
-            sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
-            cb = plt.colorbar(sm,fraction=0.08,pad=0.15,orientation='horizontal')
-            cb.ax.set_title(r'$\;\qquad\theta_c$')
-
-            for x in range(l1):
-                for y in range(l2):
-                    center1 = x*T1 + y*T2
-                    hex1 = ptch.RegularPolygon(center1, 6, 1/sqrt(3), 0, fill = False, linewidth=0.2)
-                    ax.add_patch(hex1)
-                    hex2 = ptch.RegularPolygon(center1+a1, 6, 1/sqrt(3), 0, fill = False, linewidth=0.2)
-                    ax.add_patch(hex2)
-            ax.axis("off")
-
-            ax.plot([0, T1[0], 0, T2[0]], [0, T1[1], 0, T2[1]])
-            ax.plot([T1[0],T1[0]+T2[0],T2[0],T1[0]+T2[0] ], [T1[1],T1[1]+T2[1], T2[1],T1[1]+T2[1]])
-            # ax.set_aspect('equal')
-            # fig.savefig(plot_dir + "spin_a_%.3f.pdf"%a)
-            fig.show()
+            fig = spinstuff.PlotSpins()
+            # fig.show()
+            fig.savefig(plot_dir + f"spin_a_{a:.3f}.pdf")
             plt.close()
+
 
 if __name__ == "__main__":
 
-    vlist =  np.array(range(81))
+    vlist =  np.array(range(0,1))
     do_eet = Parallel(n_jobs=mp.cpu_count())(delayed(func)(i) for i in vlist)

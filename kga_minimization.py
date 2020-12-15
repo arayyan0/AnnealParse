@@ -8,13 +8,13 @@ import numpy as np
 from lib_new_parse import ExtractEnergyFromFile
 from shutil import copyfile
 
-s = 2
-l1 = 3
-l2 = 3
-Tfp = 300
+s = 4
+l1 = 12
+l2 = 6
+Tfp = 200
 g = 0.5
 clust = 2
-versions = 80
+versions = 15
 #--------------
 # a = -0.5
 # data_dir = "../../raw_data/kg/gk=gg_ak=ag/%i_%i_%i/c_%i/Tfp_%i/g_%.3f_a_%.3f"%(s,l1,l2,c,Tfp,g,a)
@@ -35,16 +35,16 @@ versions = 80
 #         os.makedirs(data_dir+"/v_0")
 #     copyfile(data_dir + "/v_%i/p_%.3f_.out"%(which_version, p), data_dir+"/v_0/p_%.3f_.out"%p)
 #--------------
-for p in [0.25]:
+for p in [0.06,0.08,0.10]:
     data_dir = "../../raw_data/kg/gk=gg_ak=ag/%i_%i_%i/c_%i/Tfp_%i/g_%.3f_p_%.3f"%(s,l1,l2,clust,Tfp,g,p)
     print(data_dir)
     assert(os.path.exists(data_dir)),"Your data directory does not exist."
 
-    # alist = np.linspace(-0.5, 1, 30+1)
+    alist = np.linspace(-0.5, 1, 30+1)
     # alist = np.linspace(-0.03,0.21,80+1)
     # alist = np.linspace(0,0.4,20+1)
     # alist = np.array([0, 0.1,0.45,0.6])
-    alist = np.array([0.999])
+    # alist = np.array([0.999])
 
     for a in alist:
         version_Elist = []

@@ -6,7 +6,7 @@
 
 import glob
 import os
-from lib_new_parse import ExtractEnergyFromFile, PhiSweep, AnisotropySweep, pi, PhaseDiagram
+from lib_new_parse import ExtractEnergyFromFile, PhiSweep, AnisotropySweep, pi, PhaseDiagram,FreeEnergyDerivatives
 import matplotlib.pyplot as plt
 import warnings
 import numpy as np
@@ -15,11 +15,11 @@ import pickle
 from scipy.signal import peak_prominences
 warnings.filterwarnings('ignore')
 
-plt.style.use('dark_background')
+# plt.style.use('dark_background')
 
 s = 4
-l1 = 10
-l2 = 2
+l1 = 12
+l2 = 6
 Tfp = 200
 c = 2
 g = 0.5
@@ -73,14 +73,14 @@ g = 0.5
 #     with open(pickled_data_dir+"/chi_p_peaks.pickle", "wb") as newf:
 #         pickle.dump([a_peak_list_list,p_peak_list_list,f_peak_list_list], newf)
 
-for v in [0,1,2,3,4]:#,1,2,3,4,5,6,7]:
+for v in [0]:#,1,2,3,4,5,6,7]:
     p_peak_list_list, a_peak_list_list, f_peak_list_list = [], [], []
     sweeplst = []
     plst=[]
     # for p in [0,0.04,0.06,0.08,0.10,0.12,0.14,0.16,0.18,0.2,0.225,0.25,0.275,0.3,
     #           0.35,0.4,0.45,0.48,0.5,0.525,0.55,0.6,0.65,0.7,0.75,0.775,0.8,0.825,
     #           0.85,0.875,0.9,0.925,0.950,0.975,1]:
-    for p in [0.08,0.176]:
+    for p in [0.5]:
         data_dir = "../../raw_data/kg/gk=gg_ak=ag/%i_%i_%i/c_%i/Tfp_%i/g_%.3f_p_%.3f/v_%i/"%(s, l1, l2,c,Tfp,g,p,v)
         print(data_dir)
         assert(os.path.exists(data_dir)),"Your data directory does not exist."
@@ -105,30 +105,45 @@ for v in [0,1,2,3,4]:#,1,2,3,4,5,6,7]:
         a_list = np.array(a_list)[idx]
         e_list = np.array(e_list)[idx]
 
-        sweep = AnisotropySweep("g",g,a_list,e_list)
+        sweep = AnisotropySweep("?",g,a_list,3*e_list)
         plst.append(p)
         sweeplst.append(sweep)
 
         # --------------- plot 1D phase diagram --------------
         fig = sweep.PlotLabeledSweep()
-        fig.suptitle(r"$\phi/\pi=%.3f \quad \Gamma/|K| = %.3f$"%(p,np.tan(pi*p)))
-        fig.savefig(plot_dir+ "/pd.pdf")
+        ax1, ax2 = fig.axes[0], fig.axes[1]
+        # fig.suptitle(r"$\phi/\pi=%.3f \quad \Gamma/|K| = %.3f$"%(p,np.abs(np.tan(pi*p))))
+        # fig.savefig(plot_dir+ "/pd.pdf")
+        # plt.show()
+        # plt.close()
+
+        Gcoup = [((1-aaa), (1+2*aaa)) for aaa in a_list]
+        def f(tup):
+            gxy, gz = tup
+            return -np.sqrt(4*gxy**2+gz**2+np.abs(gz)*np.sqrt(8*gxy**2+gz**2))/2/np.sqrt(2)
+        eeeee = [f(tup) for tup in Gcoup]
+        for g,i,j in zip(a_list,eeeee,e_list):
+            print(f"g:{g}, dE:{i-j:.10f}")
+
+        ax1.plot(a_list, eeeee, c='orange',linestyle=(0,(5,1)))
+        plt.savefig("pureGenergy.pdf")
         plt.show()
         plt.close()
 
-        # # --------------- add peaks --------------
-        # a_peak_list, f_peak_list, f_prominences = sweep.PseudoSusceptibilityPeaks(0.07)
-        #
-        # p_peak_list_list.append(p*np.ones(len(a_peak_list)))
-        # a_peak_list_list.append(a_peak_list)
-        # f_peak_list_list.append(f_peak_list)
 
+    #     # --------------- add peaks --------------
+    #     a_peak_list, f_peak_list, f_prominences = sweep.PseudoSusceptibilityPeaks(0.07)
+    #
+    #     p_peak_list_list.append(p*np.ones(len(a_peak_list)))
+    #     a_peak_list_list.append(a_peak_list)
+    #     f_peak_list_list.append(f_peak_list)
+    #
     # if v == 0:
     # #     #-------------------------pickling peak data
     #     pickled_data_dir = "../../pickled_data/kg/gk=gg_ak=ag/%i_%i_%i/c_%i/Tfp_%i/g_%.3f/v_%i/"%(s, l1, l2,c,Tfp,g,v)
     #     if not os.path.exists(pickled_data_dir):
     #         os.makedirs(pickled_data_dir)
-
-        # print(a_peak_list_list)
-        # with open(pickled_data_dir+"/chi_a_peaks.pickle", "wb") as newf:
-        #     pickle.dump([p_peak_list_list,a_peak_list_list,f_peak_list_list,plst,sweeplst], newf)
+    #
+    #     print(a_peak_list_list)
+    #     with open(pickled_data_dir+"/chi_a_peaks.pickle", "wb") as newf:
+    #         pickle.dump([p_peak_list_list,a_peak_list_list,f_peak_list_list,plst,sweeplst], newf)
