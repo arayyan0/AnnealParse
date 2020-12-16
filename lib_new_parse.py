@@ -3,7 +3,6 @@
 # date   April 23, 2020
 # brief  Collection of functions for parsing SA data
 
-from math import sqrt
 import numpy as np
 import scipy.linalg as la
 from scipy.signal import find_peaks
@@ -22,7 +21,7 @@ np.set_printoptions(precision=5, suppress=True)
 
 pi = np.pi
 
-a1, a2 = np.array([1 / 2, sqrt(3) / 2]), np.array([-1 / 2, sqrt(3) / 2])
+a1, a2 = np.array([1 / 2, np.sqrt(3) / 2]), np.array([-1 / 2, np.sqrt(3) / 2])
 dz = -(a1 + a2) / 3
 dx, dy = [a1 + dz, a2 + dz]
 
@@ -414,7 +413,7 @@ class LSWT:
         self.T1, self.T2, self.SublatticeVectors = WhichOrder(self.Order, self.Cluster)
 
 
-        self.BondIndices, self.BondHamiltonians, self.BondDiffs, self.BondType = [], [], [], []
+        self.BondIndices, self.BondDiffs, self.BondType, self.BondTransformedHamiltonian = [], [], [], []
         self.Construct1DArrays()
 
         self.ClusterEnergy = sum(self.HzzMatrixElements)/2
@@ -430,7 +429,6 @@ class LSWT:
         self.Hz = np.array([[J1, Gz, Gp],
                             [Gz, J1, Gp],
                             [Gp, Gp, J1 + Kz]])
-        # print(self.Hx)
 
     def Construct1DArrays(self):
         def determine_bond_characteristics(s1, s2):
@@ -441,85 +439,66 @@ class LSWT:
                                           for pmd in [whichd, -whichd]]
                 if bool1:
                     self.BondIndices.append([s1, s2])
-                    self.BondHamiltonians.append(H)
                     self.BondDiffs.append(+whichd)
                     self.BondType.append(type)
+                    Ri, Rj = LocalRotation(self.Spins[s1]), LocalRotation(self.Spins[s2])
+                    Ht = np.einsum('ab,bc,dc->ad', Ri, H, Rj)
+                    self.BondTransformedHamiltonian.append(Ht)
+
                 elif bool2:
                     self.BondIndices.append([s1, s2])
-                    self.BondHamiltonians.append(H)
                     self.BondDiffs.append(-whichd)
                     self.BondType.append(type)
-            return 0
+                    Ri, Rj = LocalRotation(self.Spins[s1]), LocalRotation(self.Spins[s2])
+                    Ht = np.einsum('ab,bc,dc->ad', Ri, H, Rj)
+                    self.BondTransformedHamiltonian.append(Ht)
 
         lst = it.product(range(self.Sites), range(self.Sites))
-        crap = [determine_bond_characteristics(s1, s2) for [s1, s2] in lst]
-        self.BondIndices, self.BondHamiltonians, self.BondDiffs = [
-            np.array(x) for x in [self.BondIndices, self.BondHamiltonians, self.BondDiffs]]
+        for [s1, s2] in lst:
+            determine_bond_characteristics(s1, s2)
+        self.BondIndices, self.BondDiffs, self.BondTransformedHamiltonian = map(np.array,
+                     [self.BondIndices, self.BondDiffs, self.BondTransformedHamiltonian])
 
         # for i in range(len(self.BondIndices)):
         #     print(self.BondIndices[i], self.BondDiffs[i],self.BondType[i])
         #     print("..........")
 
-        self.bond_spins = np.array([[self.Spins[i], self.Spins[j]]
-                               for i, j in self.BondIndices[:, :]])
-        self.bond_rotations = np.array([ [LocalRotation(Si), LocalRotation(Sj)]
-                                    for Si, Sj in self.bond_spins[:, :]])
-
-        self.transformed_bond_hamiltonians = np.einsum('abc,acd,aed->abe', self.bond_rotations[:, 0, :],
-                                                  self.BondHamiltonians, self.bond_rotations[:, 1, :])
-
-        # new_energies = np.einsum('ab,abc,ac->a',bond_spins[:,0],transformed_bond_hamiltonians,bond_spins[:,1])
-        # print(np.sum(new_energies)/self.Sites)
-
-
-        def parse_hamiltonian(H):
-            A = ( H[0, 0] + H[1, 1] + 1j * (H[1, 0] - H[0, 1]) )/2
-            B = ( H[0, 0] - H[1, 1] + 1j * (H[1, 0] + H[0, 1]) )/2
-            return np.array([A, B])
-
-        self.ABElements = np.array(
-            [parse_hamiltonian(H) for H in self.transformed_bond_hamiltonians])
-        # print(self.ABElements[:,1])
-        self.HzzMatrixElements = self.transformed_bond_hamiltonians[:, 2, 2]
+        self.AElements = 0.5*(
+                              (self.BondTransformedHamiltonian[:, 0, 0] + self.BondTransformedHamiltonian[:, 1, 1])
+                       + 1j * (self.BondTransformedHamiltonian[:, 1, 0] - self.BondTransformedHamiltonian[:, 0, 1])
+                       )
+        self.BElements = 0.5*(
+                              (self.BondTransformedHamiltonian[:, 0, 0] - self.BondTransformedHamiltonian[:, 1, 1])
+                       + 1j * (self.BondTransformedHamiltonian[:, 1, 0] + self.BondTransformedHamiltonian[:, 0, 1])
+                       )
+        self.HzzMatrixElements = self.BondTransformedHamiltonian[:, 2, 2]
 
         # for i in range(len(self.HzzMatrixElements)):
             # print(i, self.BondIndices[i], self.HzzMatrixElements[i])
 
-    def ObtainMagnonSpectrumAndDiagonalizer(self, klst,angle,offset):
-
+    def ObtainMagnonSpectrumAndDiagonalizer(self, klst, angle, offset):
         def R2(theta):
             s, c = np.sin(theta), np.cos(theta)
             return np.array([[c, -s], [s, c]])
 
         R = R2(angle)
 
+        self.Diagonalizer = np.empty((len(klst), 2*self.Sites,2*self.Sites), dtype=np.clongdouble)
+        self.BothDispersions = np.empty((len(klst), 2*self.Sites), dtype=np.longdouble)
+        # self.Tk = np.empty((len(klst), 2*self.Sites,2*self.Sites), dtype=np.clongdouble)
+
         self.klst = np.einsum('ab,cb->ca', R, np.array(klst))
-
         self.phase_matrix_elements = np.exp(-1j * np.dot(self.BondDiffs, self.klst.T))
-        self.other_phase_matrix_elements = np.exp(-1j * np.dot(self.BondDiffs, -self.klst.T))
-        # print(self.phase_matrix_elements.shape)
-
-        # ikk = 155
-        # jkk = 3
-        # r = self.BondDiffs[jkk,:]
-        # k = self.klst[ikk,:]
-        # print(f"swag{self.phase_matrix_elements[jkk,ikk] - np.exp(1j*k.dot(r))}")
-        # print(f"ga{self.ABElements[jkk,0]*self.phase_matrix_elements[jkk,ikk] }")
 
         a_matrix_elements = np.einsum(
-            'a,ac->ac', self.ABElements[:, 0], self.phase_matrix_elements)
+            'a,ac->ac', self.AElements, self.phase_matrix_elements)
         b_matrix_elements = np.einsum(
-            'a,ac->ac', self.ABElements[:, 1], self.phase_matrix_elements)
-        c_matrix_elements = np.einsum(
-            'a,ac->ac', np.conj(self.ABElements[:, 1]), self.phase_matrix_elements)
-        d_matrix_elements = np.einsum(
-            'a,ac->ac', np.conj(self.ABElements[:, 0]), self.phase_matrix_elements)
-
+            'a,ac->ac', self.BElements, self.phase_matrix_elements)
         e_matrix_elements = np.einsum(
-            'a,ac->ac', self.ABElements[:, 0], self.other_phase_matrix_elements)
+            'a,ac->ac', self.AElements, np.conj(self.phase_matrix_elements))
 
-        self.Ak, self.Bk, self.Ck, self.Dk, self.Ek = np.zeros(
-            (5, len(klst), self.Sites, self.Sites), dtype=complex)
+        self.Ak, self.Bk, self.Ek = np.zeros(
+            (3, len(klst), self.Sites, self.Sites), dtype=complex)
 
         self.Hk = np.zeros(
             (len(klst),
@@ -534,136 +513,110 @@ class LSWT:
             s1, s2 = self.BondIndices[j, :]
             self.Ak[i, s1, s2] += a_matrix_elements[j, i] #- self.HzzMatrixElements[j]
             self.Bk[i, s1, s2] += b_matrix_elements[j, i]
-            self.Ck[i, s1, s2] += c_matrix_elements[j, i]
-            self.Dk[i, s1, s2] += d_matrix_elements[j, i] #- self.HzzMatrixElements[j]
             self.Ek[i, s1, s2] += e_matrix_elements[j, i] #- self.HzzMatrixElements[j]
             return 0
 
-        #shape of self.HzzMatrixElements is (number of bonds, )
-        # print(self.HzzMatrixElements)
         Adiag = np.diag([sum(self.HzzMatrixElements[i:i + 3])
                          for i in range(self.Sites)])
-        # print([sum(self.HzzMatrixElements[i:i + 3])
-        #                  for i in range(self.Sites)])
-        # print(Adiag)
 
-        ones = np.array([1 for i in range(self.Sites)])
-        G = np.diag(np.concatenate((ones, -ones)))
-        # print(klst)
-        #
         def diagonalize_given_k(i):
             crap = [
                 fill_matrix(
                     i, j) for j in range(
                     self.BondIndices.shape[0])]
-            # print(self.Ak[i])
-            # print(self.Bk[i])
-            # print(self.Ck[i])
-            # print(self.Dk[i])
 
             self.Ak[i] = self.Ak[i] - Adiag + offset * np.eye(*self.Ak[i].shape)# - Adiag
-            self.Dk[i] = self.Dk[i] - Adiag + offset * np.eye(*self.Ak[i].shape)# - Adiag
             self.Ek[i] = self.Ek[i] - Adiag + offset * np.eye(*self.Ak[i].shape)# - Adiag
             # print(self.Ak[i])
 
-            eps =  10E-12
-            A_is_hermit = np.all(np.abs(self.Ak[i] - np.conj(self.Ak[i].T)) <= eps)
-            B_is_C_hermit = np.all(np.abs(self.Bk[i] - np.conj(self.Ck[i].T)) <= eps)
-            D_is_hermit = np.all(np.abs(self.Dk[i] - np.conj(self.Dk[i].T)) <= eps)
-
-            diag_cond = np.all(np.abs(self.Dk[i] - self.Ek[i].T )<= eps)
-
-            if not A_is_hermit:
-                print("A != A dagger")
-            if not B_is_C_hermit:
-                print("B != C dagger")
-            if not D_is_hermit:
-                print("D != D dagger")
-            if not diag_cond:
-                print("check the diagonals!")
-
-            # self.Hk[i] = np.block([
-            #     [self.Ak[i], self.Bk[i]],
-            #     [self.Ck[i], self.Dk[i]]
-            # ])
             self.Hk[i] = np.block([
                 [self.Ak[i]           , self.Bk[i]],
                 [np.conj(self.Bk[i].T), self.Ek[i].T]
             ])
 
-            # Method 1: straightforward diagonalization of G Hk
-            newmat = np.matmul(G, self.Hk[i])
+        for i in range(0,len(klst)):
+            diagonalize_given_k(i)
 
-            dispersion, vectors = np.linalg.eig(newmat)
-            dispersion = -np.sort(-dispersion)
-            # print(np.imag(dispersion))
-
-            # if not is_normal:
-                # print("H not normal")
-
-            # Method 2: straightforward diagonalization of Hk
-            # dispersion, vectors = np.linalg.eigh(self.Hk[i])
-            # dispersion = np.sort(dispersion)
+        ones = np.array([1 for i in range(self.Sites)])
+        G = np.diag(np.concatenate((ones, -ones)))
 
 
-            # Method 3: straightforward diagonalization of G Hk
-            # try:
-                # Mk = la.cholesky(self.Hk[i])
-                # print("cholesky decomposition passed.")
-            # except BaseException:
-                # print("cholesky decomposition failed.")
-                # Mk  = np.empty(self.Hk[i].shape)
-                # tempval, tempvec = la.eigh(self.Hk[i])
-                # sqtempdiag = np.diag(tempval)
-                # Mk = np.einsum(
-                    # 'ab,bc,dc->ad',
-                    # tempvec,
-                    # np.sqrt(
-                        # self.Hk[i]),
-                    # np.conjugate(tempvec))
-            #     # print(tempval)
+        try:
+            # # Method 1a: Cholesky decomposition
+            lowertriangle = np.linalg.cholesky(self.Hk)
+        except np.linalg.LinAlgError:
+            # Method 2: straightforward diagonalization of G Hk
+            #  #        requires ortho. wrt G (TBD). DO NOT USE DIAGONALIZER.
+            matrices = np.einsum('ab,cbd->cad',G,self.Hk)
+            dispersions, a_diagonalizer = np.linalg.eig(matrices)
 
-            # eigval, eigvec = la.eigh(
-                # np.einsum('ab,bc,dc->ad', Mk, G, np.conjugate(Mk)))
-            # idx = eigval.argsort()[::-1]
-            # dispersion, Uk = eigval[idx], eigvec[:, idx]
-            # # print(dispersion)
+            for i in range(dispersions.shape[0]):
+                v, w = dispersions[i], a_diagonalizer[i]
+                idx = np.argsort(v)[::-1]
+                v = v[idx]
+                w = w[:,idx]
 
-            # Tk = la.solve_triangular(
-            #     Mk,
-            #     np.einsum(
-            #         'ab,bc->ac',
-            #         Uk,
-            #         np.sqrt(
-            #             np.einsum(
-            #                 'ab,bc->ac',
-            #                 G,
-            #                 np.diag(dispersion)))))
+                v[self.Sites:] = - v[self.Sites:]
+                self.BothDispersions[i,] = v
+                self.Diagonalizer[i] = w
+        else:
+            # # Method 1b: Diagonalizing L^dagger G L
+            tobediagonalized = np.einsum('acb,cd,ade->abe', np.conj(lowertriangle), G, lowertriangle)
+            eigenval, eigenvec = np.linalg.eigh(tobediagonalized)
 
-            self.Dispersions[i, :] = dispersion[:self.Sites]/2
-            # self.Tk[i, :, :] = Tk[:self.Sites, :self.Sites]
-            return 0
-        #
-        self.Dispersions = np.empty((len(klst), self.Sites), dtype=np.double)
-        # self.Tk = np.empty((len(klst), self.Sites, self.Sites), dtype=complex)
-        crap = [diagonalize_given_k(i) for i in range(len(klst))]
+            for i in range(eigenval.shape[0]):
+                v, w = eigenval[i], eigenvec[i]
+                idx = np.argsort(v)[::-1]
+                v = v[idx]
+                w = w[:,idx]
 
-        self.Dispersions[np.abs(self.Dispersions) < 10E-12] = 0
+                v[self.Sites:] = - v[self.Sites:]
+                self.BothDispersions[i] = v
 
-        if not np.all(self.Dispersions >= 0):
+                rhs = np.matmul(w, np.diag(np.sqrt(v)) )
+
+                for j in range(2*self.Sites):
+                    result = la.solve_triangular(np.conj(lowertriangle[i]).T, rhs[:,j],overwrite_b=True)
+                    self.Diagonalizer[i,:,j] = result
+
+        # if diagonal and positive, we got the write answer.
+        # print(np.matmul(np.conj(self.Diagonalizer[0]).T, np.matmul(self.Hk[0], self.Diagonalizer[0])))
+        # if equal to G, we got the write answer.
+        # print(np.matmul(np.conj(self.Diagonalizer[0]).T, np.matmul(G         , self.Diagonalizer[0])))
+
+
+        # clip out the small zeros and test for positive eigenvalue bands
+        self.UpperDispersions = self.BothDispersions[:,:self.Sites]
+        self.UpperDispersions[np.abs(self.UpperDispersions) < 10E-12] = 0
+        if not np.all(self.UpperDispersions >= 0):
             print("Warning: non-trivial negative eigenvalues.")
 
     def PlotMagnonDispersions(self, kpath, tick_mark, sym_labels):
         n = len(kpath)
         fig, ax = plt.subplots()
-        for i in range(3):
-            ax.plot(range(len(kpath)), self.Dispersions)
-        if not np.all(self.Dispersions >= 0):
+        ax.plot(range(len(kpath)), self.UpperDispersions)
+        if not np.all(self.UpperDispersions >= 0):
             plt.title("Warning: non-trivial negative eigenvalues.")
 
         ax.axhline(y=0, color='0.75', linestyle=':')
         ax.set_ylabel(r'$\omega_{n\mathbf{k}}$', usetex=True)
         plt.xticks(tick_mark, sym_labels, usetex=True)
+
+        plt.vlines(tick_mark,0,np.max(self.UpperDispersions),linestyles=':',color='0.75')
+        return fig
+
+    def PlotMagnonDispersions(self, kpath, tick_mark, sym_labels):
+        n = len(kpath)
+        fig, ax = plt.subplots()
+        ax.plot(range(len(kpath)), self.UpperDispersions)
+        if not np.all(self.UpperDispersions >= 0):
+            plt.title("Warning: non-trivial negative eigenvalues.")
+
+        ax.axhline(y=0, color='0.75', linestyle=':')
+        ax.set_ylabel(r'$\omega_{n\mathbf{k}}$', usetex=True)
+        plt.xticks(tick_mark, sym_labels, usetex=True)
+
+        plt.vlines(tick_mark,0,np.max(self.UpperDispersions),linestyles=':',color='0.75')
         return fig
 # ------------------------------------------------------------------------------
 
