@@ -174,17 +174,17 @@ def func(v):
                 flat_spin_loc[i, :] = x*T1 + y*T2 + sublattice_vectors[sub]
                 flat_spin_config[i, :] = rot_spin
 
-            spinstuff = SpinConfiguration(flat_spin_loc, flat_spin_config, [type, s, l1, l2, clus])
+            # spinstuff = SpinConfiguration(flat_spin_loc, flat_spin_config, [type, s, l1, l2, clus])
 
-            fig = spinstuff.PlotSSF()
+            # fig = spinstuff.PlotSSF()
             # fig.show()
-            fig.savefig(plot_dir + f"ssf_a_{a:.3f}.pdf")
-            plt.close()
+            # fig.savefig(plot_dir + f"ssf_a_{a:.3f}.pdf")
+            # plt.close()
 
-            fig = spinstuff.PlotSpins()
+            # fig = spinstuff.PlotSpins()
             # fig.show()
-            fig.savefig(plot_dir + f"spin_a_{a:.3f}.pdf")
-            plt.close()
+            # fig.savefig(plot_dir + f"spin_a_{a:.3f}.pdf")
+            # plt.close()
 
 
 if __name__ == "__main__":

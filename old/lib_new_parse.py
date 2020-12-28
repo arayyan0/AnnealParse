@@ -1,7 +1,7 @@
 # file   lib_new_parse.py
 # author Ahmed Rayyan
 # date   April 23, 2020
-# brief  Collection of functions for parsing SA data
+# brief  Collection of functions for parsing SA data and LSWT
 
 import numpy as np
 import scipy.linalg as la
@@ -26,48 +26,48 @@ dz = -(a1 + a2) / 3
 dx, dy = [a1 + dz, a2 + dz]
 
 
-def WhichUnitCell(type, sublattice, version):
+def WhichUnitCell(hc_or_kek, type, sublattice):
     # selects the unit cell information:
     #    translational vectors (ie. geometry)
     #    location of sublattices
     #    colors for each sublattice
-    if type == 0:
-        if sublattice == 2:
-            if version == 1:
-                # Rhombic cluster 1 (encloses z bonds)
-                T1, T2 = a1, a2
-                sub_list = np.array([
-                    (T1 + T2) / 3,
-                    2 * (T1 + T2) / 3
-                ])
-            if version == 2:
-                # Rhombic cluster 2 (encloses x bonds)
-                T1, T2 = a1 - a2, a1
-                sub_list = np.array([
-                    (T1 + T2) / 3,
-                    2 * (T1 + T2) / 3
-                ])
+    if hc_or_kek == 0:
+        if sublattice == 2 and type == 1:
+            T1, T2 = a1, a2
+            sub_list = np.array([
+                (T1 + T2) / 3,
+                2 * (T1 + T2) / 3
+            ])
             color = np.array(["r", "c"])
-        if sublattice == 4:
-            if version == 1:
-                # Rectangular cluster 1 (encloses y bonds)
-                T1, T2 = a1, a1 + 2 * (a2 - a1)
-                sub_list = np.array([
-                    (a1 + a2) / 3,
-                    2 * (a1 + a2) / 3,
-                    (a1 + a2) / 3 + a2,
-                    2 * (a1 + a2) / 3 + a2 - a1,
-                ])
-            if version == 2:
-                # Rectangular cluster 2 (encloses z bonds)
-                T1, T2 = a1 - a2, a1 + a2
-                sub_list = np.array([
-                    (a1 + a2) / 3 + (a1 + a2) / 3 - a2,
-                    2 * (a1 + a2) / 3 + 2 * ((a1 + a2) / 3 - a2),
-                    (a1 + a2) / 3 + (a1 + a2) / 3 - a2 + a1,
-                    2 * (a1 + a2) / 3 + 2 * ((a1 + a2) / 3 - a2) + a2,
-                ])
+
+        elif sublattice == 2 and type == 2:
+            T1, T2 = a1 - a2, a1
+            sub_list = np.array([
+                (T1 + T2) / 3,
+                2 * (T1 + T2) / 3
+            ])
+            color = np.array(["r", "c"])
+
+        elif sublattice == 4 and type == 1:
+            T1, T2 = a1, a1 + 2 * (a2 - a1)
+            sub_list = np.array([
+                (a1 + a2) / 3,
+                2 * (a1 + a2) / 3,
+                (a1 + a2) / 3 + a2,
+                2 * (a1 + a2) / 3 + a2 - a1,
+            ])
             color = np.array(["tab:red", "tab:cyan", "tab:orange", "tab:blue"])
+
+        elif sublattice == 4 and type == 2:
+            T1, T2 = a1 - a2, a1 + a2
+            sub_list = np.array([
+                (a1 + a2) / 3 + (a1 + a2) / 3 - a2,
+                2 * (a1 + a2) / 3 + 2 * ((a1 + a2) / 3 - a2),
+                (a1 + a2) / 3 + (a1 + a2) / 3 - a2 + a1,
+                2 * (a1 + a2) / 3 + 2 * ((a1 + a2) / 3 - a2) + a2,
+            ])
+            color = np.array(["tab:red", "tab:cyan", "tab:orange", "tab:blue"])
+
     elif type == 1:
         if sublattice == 6:
             # Kekule cluster
@@ -103,14 +103,23 @@ def WhichOrder(order,cluster):
     #                          B + a1])
 
     elif order == "ZZ" and cluster == "rh2":
-        #note: specifically, l1 = 1, l2 = 2, M2 configuration
-        T1, T2 = a1 - a2, 2*a1
+        #note: specifically, l1 = 2, l2 = 1, M3 configuration
+        T1, T2 = 2*(a1 - a2), a1
         A, B = (2*a1-a2)/3, 2*(2*a1-a2)/3
         sub_list = np.array([A,
                              B,
-                             A + a1,
-                             B + a1])
-    #
+                             A + a1-a2,
+                             B + a1-a2])
+
+    # elif order == "ZZ" and cluster == "rh2":
+    #     #note: specifically, l1 = 1, l2 = 2, M2 configuration
+    #     T1, T2 = a1 - a2, 2*a1
+    #     A, B = (2*a1-a2)/3, 2*(2*a1-a2)/3
+    #     sub_list = np.array([A,
+    #                          B,
+    #                          A + a1,
+    #                          B + a1])
+
     # elif order == "ZZ" and cluster == "rh1":
     #     #note: specifically, l1 = 1, l2 = 2, M3 configuration
     #     T1, T2 = a1, 2*a2
@@ -120,7 +129,7 @@ def WhichOrder(order,cluster):
     #                          A + a2,
     #                          B + a2])
     #################################6sites####################################
-    #
+
     # elif order == "6" and cluster == "rh1":
     #     #note: specifically, l1 = 3, l2 = 1
     #     T1, T2 = 3*a1, a2
@@ -175,6 +184,7 @@ def WhichOrder(order,cluster):
                              B + 1*a1 + 2*a2,
                              A + 2*a1 + 2*a2,
                              B + 2*a1 + 2*a2])
+
     #################################other####################################
 
     # elif order == "zz" and cluster == "rh2":
@@ -252,8 +262,8 @@ def IndexToPosition(T1, T2, sv, indices):
 
 
 def EquivalentBravais(T1, T2, x, y):
-    # Takes two vectors x and y and sees if they can be written as a linear combination
-    # of two Bravais vectors T1 and T2.
+    # Takes two vectors x and y and sees if their difference can be written as a
+    # linear combination of two Bravais vectors T1 and T2.
     # n: array [n1, n2] such that x-y = n1*T1 + n2*T2
     # bool: variable which, if True, means that it n1, n2 are INTEGER. if not,
     # they are REAL.
@@ -312,6 +322,47 @@ def NewMakeGrid(b1, b2, L1, L2, n):
     # ax.set_ylabel(r'$k_y$')
     ax.set_facecolor('black')
 
+    return KX, KY, fig
+
+def AddBZ(fig, scale):
+    b1, b2 = FindReciprocalVectors(a1, a2)
+
+    #first crystal BZ
+    bz2 = ptch.RegularPolygon((0, 0), 6, np.linalg.norm((2 * b1 + b2) / 3)/scale, pi / 6, fill=False,color='r')
+    #second crystal BZ
+    bz3 = ptch.RegularPolygon((0, 0), 6, np.linalg.norm(b1)/scale, 0, fill=False,color='g')
+    #sqrt(3) x sqrt(3) reduced 1st BZ
+    bz4 = ptch.RegularPolygon((0, 0), 6, np.linalg.norm(b1 + b2)/3/scale, 0, fill=False,color='b')
+
+    fig.axes[0].add_patch(bz2)
+    fig.axes[0].add_patch(bz3)
+    fig.axes[0].add_patch(bz4)
+    fig.axes[0].set_xlim(-6.5/scale, 6.5/scale)
+    fig.axes[0].set_ylim(-7.5/scale, 7.5/scale)
+    fig.axes[0].set_xlabel(rf"$k_x/{scale:.3f}$")
+    fig.axes[0].set_ylabel(rf"$k_y/{scale:.3f}$",rotation=0)
+    return fig
+
+def MakeFirstBZ(b1, b2, L1, L2,m1,m2):
+    # n1 and n2 should be EVEN.
+    L12, L22 = map(int, [L1/2,L2/2])
+
+    oneD1 = np.array(range(-L12*m1, m1*L12))/L1  # 1d list of points
+    oneD2 = np.array(range(-L22*m2, m2*L22))/L2  # 1d list of points
+    n1, n2 = np.meshgrid(oneD1, oneD2)  # grid points indexing G1/G2 direction
+    KX = n1 * b1[0] + n2 * b2[0]  # bends meshgrid into shape of BZ
+    KY = n1 * b1[1] + n2 * b2[1]
+
+    #creating plot of points in BZ
+    scale = 2*pi
+    fig, ax = plt.subplots()
+    ax.plot(KX/scale, KY/scale, '+',c='grey')
+    ax.set_aspect('equal')
+    ax.set_xlabel(fr'$k_x/{scale:.3f}$')
+    ax.set_ylabel(fr'$k_y/{scale:.3f}$')
+    ax.set_facecolor('black')
+
+    AddBZ(fig, scale)
     return KX, KY, fig
 # ------------------------------------------------------------------------------
 
@@ -418,6 +469,9 @@ class LSWT:
 
         self.ClusterEnergy = sum(self.HzzMatrixElements)/2
 
+        ones = np.array([1 for i in range(self.Sites)])
+        self.G = np.diag(np.concatenate((ones, -ones)))
+
     def CreateHamiltonians(self, h_parameters):
         [Kx, Ky, Kz], [Gx, Gy, Gz], Gp, J1 = h_parameters
         self.Hx = np.array([[Kx + J1, Gp, Gp],
@@ -434,8 +488,12 @@ class LSWT:
         def determine_bond_characteristics(s1, s2):
             d = self.SublatticeVectors[s1] - self.SublatticeVectors[s2]
             for whichd, H, type in zip([dx, dy, dz], [self.Hx, self.Hy, self.Hz], ['x','y','z']):
+                # print(list(EquivalentBravais(self.T1, self.T2,
+                                                            # d, pmd)
+                                          # for pmd in [whichd, -whichd]))
+                #checks if d = +/- d + R, where R is (magnetic)Bravais unit vectors
                 [_, bool1], [_, bool2] = [EquivalentBravais(self.T1, self.T2,
-                                                            d - (pmd), np.array([0, 0]))
+                                                            d- pmd, np.array([0,0]))
                                           for pmd in [whichd, -whichd]]
                 if bool1:
                     self.BondIndices.append([s1, s2])
@@ -454,27 +512,31 @@ class LSWT:
                     self.BondTransformedHamiltonian.append(Ht)
 
         lst = it.product(range(self.Sites), range(self.Sites))
+
         for [s1, s2] in lst:
+            # print(f":::::::::{s1},{s2}")
             determine_bond_characteristics(s1, s2)
         self.BondIndices, self.BondDiffs, self.BondTransformedHamiltonian = map(np.array,
                      [self.BondIndices, self.BondDiffs, self.BondTransformedHamiltonian])
 
-        # for i in range(len(self.BondIndices)):
-        #     print(self.BondIndices[i], self.BondDiffs[i],self.BondType[i])
-        #     print("..........")
-
         self.AElements = 0.5*(
                               (self.BondTransformedHamiltonian[:, 0, 0] + self.BondTransformedHamiltonian[:, 1, 1])
-                       + 1j * (self.BondTransformedHamiltonian[:, 1, 0] - self.BondTransformedHamiltonian[:, 0, 1])
+                       - 1j * (self.BondTransformedHamiltonian[:, 0, 1] - self.BondTransformedHamiltonian[:, 1, 0])
                        )
         self.BElements = 0.5*(
                               (self.BondTransformedHamiltonian[:, 0, 0] - self.BondTransformedHamiltonian[:, 1, 1])
-                       + 1j * (self.BondTransformedHamiltonian[:, 1, 0] + self.BondTransformedHamiltonian[:, 0, 1])
+                       + 1j * (self.BondTransformedHamiltonian[:, 0, 1] + self.BondTransformedHamiltonian[:, 1, 0])
                        )
         self.HzzMatrixElements = self.BondTransformedHamiltonian[:, 2, 2]
 
+        # for i in range(len(self.BondIndices)):
+            # if self.BondIndices[i,0] == 2 or self.BondIndices[i,0] == 4:
+                # print(self.BondType[i], self.BondIndices[i], self.HzzMatrixElements[i])
+                # print(self.BondType[i], self.BondIndices[i], self.AElements[i], self.BElements[i])
+                # print("..........")
+
         # for i in range(len(self.HzzMatrixElements)):
-            # print(i, self.BondIndices[i], self.HzzMatrixElements[i])
+            # print(self.BondType[i], self.BondIndices[i], self.HzzMatrixElements[i])
 
     def ObtainMagnonSpectrumAndDiagonalizer(self, klst, angle, offset):
         def R2(theta):
@@ -488,14 +550,27 @@ class LSWT:
         # self.Tk = np.empty((len(klst), 2*self.Sites,2*self.Sites), dtype=np.clongdouble)
 
         self.klst = np.einsum('ab,cb->ca', R, np.array(klst))
+        # print(self.klst)
         self.phase_matrix_elements = np.exp(-1j * np.dot(self.BondDiffs, self.klst.T))
+        # print(self.phase_matrix_elements)
 
         a_matrix_elements = np.einsum(
             'a,ac->ac', self.AElements, self.phase_matrix_elements)
         b_matrix_elements = np.einsum(
             'a,ac->ac', self.BElements, self.phase_matrix_elements)
+        # e_matrix_elements = np.einsum(
+            # 'a,ac->ac', np.conj(self.AElements), self.phase_matrix_elements)
+        # c_matrix_elements = np.einsum(
+            # 'a,ac->ac', np.conj(self.BElements), self.phase_matrix_elements)
         e_matrix_elements = np.einsum(
             'a,ac->ac', self.AElements, np.conj(self.phase_matrix_elements))
+        # print(a_matrix_elements.shape)
+        # for i in range(len(self.BondIndices)):
+            # if self.BondIndices[i,0] == 0 or self.BondIndices[i,0] == 4:
+                # print(self.BondType[i], self.BondIndices[i], a_matrix_elements[i,0])
+                # print(self.BondType[i], self.BondIndices[i], b_matrix_elements[i,0])
+                # print(self.BondType[i], self.BondIndices[i], e_matrix_elements[i,0])
+                # print("..........")
 
         self.Ak, self.Bk, self.Ek = np.zeros(
             (3, len(klst), self.Sites, self.Sites), dtype=complex)
@@ -514,9 +589,12 @@ class LSWT:
             self.Ak[i, s1, s2] += a_matrix_elements[j, i] #- self.HzzMatrixElements[j]
             self.Bk[i, s1, s2] += b_matrix_elements[j, i]
             self.Ek[i, s1, s2] += e_matrix_elements[j, i] #- self.HzzMatrixElements[j]
-            return 0
+            # self.Ck[i, s1, s2] += c_matrix_elements[j, i]
+            # if i == 0 and ((s1 == 0) or (s1 == 4)):
+            #     print(i, s1, s2, a_matrix_elements[j, i],self.Ak[i, s1, s2])
+            # return 0
 
-        Adiag = np.diag([sum(self.HzzMatrixElements[i:i + 3])
+        Adiag = np.diag([sum(self.HzzMatrixElements[3*i:3*(i +1) ])
                          for i in range(self.Sites)])
 
         def diagonalize_given_k(i):
@@ -524,6 +602,7 @@ class LSWT:
                 fill_matrix(
                     i, j) for j in range(
                     self.BondIndices.shape[0])]
+            # print(self.Ak[0, 0, 1])
 
             self.Ak[i] = self.Ak[i] - Adiag + offset * np.eye(*self.Ak[i].shape)# - Adiag
             self.Ek[i] = self.Ek[i] - Adiag + offset * np.eye(*self.Ak[i].shape)# - Adiag
@@ -533,35 +612,50 @@ class LSWT:
                 [self.Ak[i]           , self.Bk[i]],
                 [np.conj(self.Bk[i].T), self.Ek[i].T]
             ])
+            # self.Hk[i] = np.block([
+            #     [self.Ak[i]  , self.Bk[i]],
+            #     [self.Ck[i]  , self.Ek[i]]
+            # ])
 
         for i in range(0,len(klst)):
             diagonalize_given_k(i)
 
-        ones = np.array([1 for i in range(self.Sites)])
-        G = np.diag(np.concatenate((ones, -ones)))
-
-
         try:
             # # Method 1a: Cholesky decomposition
+            print("Trying to Cholesky-decompose the BdG Hamiltonian, stand by...")
             lowertriangle = np.linalg.cholesky(self.Hk)
         except np.linalg.LinAlgError:
+            self.CholeskyFailure = True
+            print("Cholesky decomposition failed.\n\
+                   Performing diagonalization straightforwardly. Beware of complex eigenvalues. Will check.\n\
+                   Absolutely do NOT use the diagonalizer. It is not orthogonalized wrt G matrix.")
             # Method 2: straightforward diagonalization of G Hk
             #  #        requires ortho. wrt G (TBD). DO NOT USE DIAGONALIZER.
-            matrices = np.einsum('ab,cbd->cad',G,self.Hk)
+            matrices = np.einsum('ab,cbd->cad',self.G,self.Hk)
             dispersions, a_diagonalizer = np.linalg.eig(matrices)
 
             for i in range(dispersions.shape[0]):
                 v, w = dispersions[i], a_diagonalizer[i]
+
                 idx = np.argsort(v)[::-1]
                 v = v[idx]
                 w = w[:,idx]
 
+                if not np.all(np.imag(v) < 10E-12):
+                    self.ComplexEigenvalues = True
+                    # print("Warning: eigenvalues are complex.")
+
                 v[self.Sites:] = - v[self.Sites:]
-                self.BothDispersions[i,] = v
+
+                self.BothDispersions[i,] = v/2
                 self.Diagonalizer[i] = w
+
         else:
+            self.CholeskyFailure = False
+            self.ComplexEigenvalues = False
+            print("Cholesky decomposition passed. BdG Hamiltonian is positive definite.")
             # # Method 1b: Diagonalizing L^dagger G L
-            tobediagonalized = np.einsum('acb,cd,ade->abe', np.conj(lowertriangle), G, lowertriangle)
+            tobediagonalized = np.einsum('acb,cd,ade->abe', np.conj(lowertriangle), self.G, lowertriangle)
             eigenval, eigenvec = np.linalg.eigh(tobediagonalized)
 
             for i in range(eigenval.shape[0]):
@@ -571,7 +665,7 @@ class LSWT:
                 w = w[:,idx]
 
                 v[self.Sites:] = - v[self.Sites:]
-                self.BothDispersions[i] = v
+                self.BothDispersions[i] = v/2
 
                 rhs = np.matmul(w, np.diag(np.sqrt(v)) )
 
@@ -579,24 +673,29 @@ class LSWT:
                     result = la.solve_triangular(np.conj(lowertriangle[i]).T, rhs[:,j],overwrite_b=True)
                     self.Diagonalizer[i,:,j] = result
 
-        # if diagonal and positive, we got the write answer.
+        # if diagonal and positive, we got the right answer.
         # print(np.matmul(np.conj(self.Diagonalizer[0]).T, np.matmul(self.Hk[0], self.Diagonalizer[0])))
-        # if equal to G, we got the write answer.
+        # if equal to G, we got the right answer.
         # print(np.matmul(np.conj(self.Diagonalizer[0]).T, np.matmul(G         , self.Diagonalizer[0])))
 
-
-        # clip out the small zeros and test for positive eigenvalue bands
         self.UpperDispersions = self.BothDispersions[:,:self.Sites]
+        # print(self.UpperDispersions)
         self.UpperDispersions[np.abs(self.UpperDispersions) < 10E-12] = 0
         if not np.all(self.UpperDispersions >= 0):
             print("Warning: non-trivial negative eigenvalues.")
 
-    def PlotMagnonDispersions(self, kpath, tick_mark, sym_labels):
+    def PlotMagnonKPath(self, kpath, tick_mark, sym_labels):
+        # clip out the small zeros and test for positive eigenvalue bands
+        self.UpperDispersions = self.BothDispersions[:,:self.Sites]
+        self.UpperDispersions[np.abs(self.UpperDispersions) < 10E-12] = 0
+
         n = len(kpath)
         fig, ax = plt.subplots()
         ax.plot(range(len(kpath)), self.UpperDispersions)
         if not np.all(self.UpperDispersions >= 0):
             plt.title("Warning: non-trivial negative eigenvalues.")
+        if self.ComplexEigenvalues:
+            plt.title("Warning: complex eigenvalues.")
 
         ax.axhline(y=0, color='0.75', linestyle=':')
         ax.set_ylabel(r'$\omega_{n\mathbf{k}}$', usetex=True)
@@ -605,19 +704,54 @@ class LSWT:
         plt.vlines(tick_mark,0,np.max(self.UpperDispersions),linestyles=':',color='0.75')
         return fig
 
-    def PlotMagnonDispersions(self, kpath, tick_mark, sym_labels):
-        n = len(kpath)
+    def PlotLowestBand(self, KX, KY):
+        B1, B2 = FindReciprocalVectors(self.T1, self.T2)
+        lowest_band = np.reshape(self.UpperDispersions[:,self.Sites-1], KX.shape)
+
+        scale = 2*np.pi
         fig, ax = plt.subplots()
-        ax.plot(range(len(kpath)), self.UpperDispersions)
-        if not np.all(self.UpperDispersions >= 0):
-            plt.title("Warning: non-trivial negative eigenvalues.")
 
-        ax.axhline(y=0, color='0.75', linestyle=':')
-        ax.set_ylabel(r'$\omega_{n\mathbf{k}}$', usetex=True)
-        plt.xticks(tick_mark, sym_labels, usetex=True)
+        if self.ComplexEigenvalues:
+            plt.title("Beware: lowest band has complex eigenvalues")
 
-        plt.vlines(tick_mark,0,np.max(self.UpperDispersions),linestyles=':',color='0.75')
+        c = ax.pcolormesh(KX/scale, KY/scale, lowest_band, cmap='copper')
+        cbar = fig.colorbar(c, fraction=0.05)
+        cbar.set_label(r'$\omega_{\vec{k},0}$',labelpad=9, rotation=0)
+
+        AddBZ(fig, scale)
+
+        ax.plot([0, B1[0]/scale], [0, B1[1]/scale], color='white', linestyle='dashed', label = r"B1", linewidth=2)
+        ax.plot([0, B2[0]/scale], [0, B2[1]/scale], color='white', linestyle='dashed', label = r"B2", linewidth=2)
+        ax.annotate('B1', B1/scale,fontsize=10,color="white" )
+        ax.annotate('B2', B2/scale,fontsize=10,color="white" )
+
+        ax.axis("equal")
+        # ax.set_xlim(-1, 1)
+        ax.set_ylim(-1, 1)
+        # ax.axis("off")
+        ax.set_aspect('equal')
         return fig
+
+
+    def MagnonWFProperties(self):
+        if self.CholeskyFailure:
+            self.ReductionOfMoment = np.nan
+        else:
+            # obtain the boson operators:
+            inverse_diagonalizer = np.einsum('ab,ecb,cd->ebd',self.G,np.conj(self.Diagonalizer),self.G)
+            self.BosonWF = inverse_diagonalizer[:,:,:self.Sites]
+
+            result = np.sum(
+                np.linalg.norm(
+                    self.BosonWF[:,self.Sites:,:],
+                    axis = 1
+                ),
+                axis = (0,1)
+            )
+
+            self.ReductionOfMoment = 1 -result/self.Sites/self.BosonWF.shape[0]
+
+
 # ------------------------------------------------------------------------------
 
 
@@ -632,17 +766,17 @@ class FreeEnergyDerivatives:
         self.Factor = factor
 
     def PseudoMagnetization(self):
-        m = -np.gradient(self.YList, self.XList, edge_order=2) / self.Factor
+        m = -self.Gradient(self.YList, self.XList, edge_order=2) / self.Factor
         return m
 
     def PseudoSusceptibility(self):
         m = self.PseudoMagnetization()
-        chi = np.gradient(m, self.XList, edge_order=2) / self.Factor
+        chi = self.Gradient(m, self.XList, edge_order=2) / self.Factor
         return chi
 
     def ThirdDerivative(self):
         chi = self.PseudoSusceptibility()
-        f = np.gradient(chi, self.XList, edge_order=2) / self.Factor
+        f = self.Gradient(chi, self.XList, edge_order=2) / self.Factor
         return f
 
     def PlotSweep(self):
@@ -800,11 +934,11 @@ class PhaseDiagram:
         return fig
 
     def SusceptibilityGrids(self, factor_list):
-        m_list = np.gradient(self.Z, self.XList, self.YList, edge_order=2)
+        m_list = self.Gradient(self.Z, self.XList, self.YList, edge_order=2)
         mx, my = [-m_list[i] / factor_list[i] for i in range(2)]
 
-        chix_list = np.gradient(mx, self.XList, self.YList, edge_order=2)
-        chiy_list = np.gradient(my, self.XList, self.YList, edge_order=2)
+        chix_list = self.Gradient(mx, self.XList, self.YList, edge_order=2)
+        chiy_list = self.Gradient(my, self.XList, self.YList, edge_order=2)
         chixx, chiyx = [chix_list[i] / factor_list[i] for i in range(2)]
         chixy, chiyy = [chiy_list[i] / factor_list[i] for i in range(2)]
         return chixx, chiyx, chixy, chiyy
@@ -913,10 +1047,10 @@ class SpinConfiguration:
     def __init__(self, flat_spin_loc, flat_spin_config, cluster_info):
         self.SpinLocations = flat_spin_loc  # array shape: (sites, 2)
         self.SpinsABC = flat_spin_config  # array shape: (sites, 3)
-        self.Type, self.S, self.L1, self.L2, self.Cluster = cluster_info
+        self.HcOrKek, self.S, self.L1, self.L2, self.Cluster = cluster_info
 
         self.T1, self.T2, self.SublatticeVectors, _ = WhichUnitCell(
-            self.Type, self.S, self.Cluster)
+            self.HcOrKek,  self.Cluster, self.S)
 
     def PlotSSF(self):
         scale=2*pi
@@ -937,9 +1071,10 @@ class SpinConfiguration:
             phase_mat = np.einsum('i,j->ij', phase_i, phase_j)
             s_kflat[i] = np.abs((SdotS_mat * phase_mat).sum() / \
                 self.SpinLocations.shape[0]/self.SpinLocations.shape[0])
-            ax.annotate(f'$\quad${s_kflat[i]:.6f}', kv/scale,fontsize=2 )
+            ax.annotate(f'$\quad${s_kflat[i]:.6f}', kv/scale,fontsize=2,color="white" )
 
         s_k = np.reshape(s_kflat, KX.shape)
+        scale = 2*pi
         c = ax.scatter(KX/scale, KY/scale, c=s_k, cmap='afmhot', edgecolors="none")
         ax.scatter(KX/scale, KY/scale, marker="+", color='gray', s=2)
 
@@ -947,20 +1082,9 @@ class SpinConfiguration:
         cbar.set_label(r'$s_\vec{k}/N$',labelpad=9, rotation=0)
         ax.axis("equal")
         # ax.axis("off")
-        ax.set_facecolor('black')
+        # ax.set_facecolor('black')
 
-        b1, b2 = FindReciprocalVectors(a1, a2)
-        bz2 = ptch.RegularPolygon(
-            (0, 0), 6, np.linalg.norm(
-                (2 * b1 + b2) / 3)/2/pi, pi / 6, fill=False,color='gray')
-        bz3 = ptch.RegularPolygon((0, 0), 6, np.linalg.norm(b1)/2/pi, 0, fill=False,\
-                                  color='gray')
-        ax.add_patch(bz2)
-        ax.add_patch(bz3)
-        ax.set_xlim(-6.5/scale, 6.5/scale)
-        ax.set_ylim(-7.5/scale, 7.5/scale)
-        ax.set_xlabel(r'$k_x/2\pi$')
-        ax.set_ylabel(r'$k_y/2\pi$',rotation=0)
+        AddBZ(fig,scale)
         return fig
 
     def PlotSpins(self):
@@ -985,10 +1109,10 @@ class SpinConfiguration:
             for y in range(self.L2):
                 center1 = x * self.T1 + y * self.T2
                 hex1 = ptch.RegularPolygon(
-                    center1, 6, 1 / sqrt(3), 0, fill=False, linewidth=0.1)
+                    center1, 6, 1 / np.sqrt(3), 0, fill=False, linewidth=0.1)
                 ax.add_patch(hex1)
                 hex2 = ptch.RegularPolygon(
-                    center1 + a1, 6, 1 / sqrt(3), 0, fill=False, linewidth=0.1)
+                    center1 + a1, 6, 1 / np.sqrt(3), 0, fill=False, linewidth=0.1)
                 ax.add_patch(hex2)
         # # plt.figure(figsize=(8,8))
         mandem = np.arccos(
@@ -1032,11 +1156,11 @@ class SpinConfiguration:
         plt.axis('scaled')
 
         #
-        # ax.plot([0, self.T1[0], 0, self.T2[0]], [0, self.T1[1], 0, self.T2[1]])
-        # ax.plot([self.T1[0], self.T1[0] +
-        #          self.T2[0], self.T2[0], self.T1[0] +
-        #          self.T2[0]], [self.T1[1], self.T1[1] +
-        #                        self.T2[1], self.T2[1], self.T1[1] +
-        #                        self.T2[1]])
+        ax.plot([0, self.T1[0], 0, self.T2[0]], [0, self.T1[1], 0, self.T2[1]])
+        ax.plot([self.T1[0], self.T1[0] +
+                 self.T2[0], self.T2[0], self.T1[0] +
+                 self.T2[0]], [self.T1[1], self.T1[1] +
+                               self.T2[1], self.T2[1], self.T1[1] +
+                               self.T2[1]])
         return fig
 #
