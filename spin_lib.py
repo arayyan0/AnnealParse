@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import matplotlib.patches as ptch
+from functools import cached_property
 
 from common import pi, sqrt3, gen_eps, a1, a2, AddBZ, FindReciprocalVectors, \
 LocalRotation, IndexToPosition, KMeshForPlotting, PlotLineBetweenTwoPoints
@@ -113,7 +114,9 @@ class AnnealedSpinConfiguration:
         Parameters
         filename (string): filename of the simulated annealing raw data file.
         '''
-        with open(filename, 'r') as f:
+        self.Filename = filename
+
+        with open(self.Filename, 'r') as f:
             file_data = f.readlines()
 
         hc_or_kek, type = [int(x) for x in file_data[2].split()]
@@ -136,9 +139,16 @@ class AnnealedSpinConfiguration:
 
         self.MCEnergyDensity = np.double(file_data[30])
 
-        #could be slow for large clusters, and not necessary if i just want the 
-        #energy. consider saving filedata as an attribute and extracting from it
-        #through some method self.ReadSpins(), etc.
+    def ExtractMomentsAndPositions(self):
+        '''
+        Extracts the moments and locations from the file. Separated from __init__
+        to save time if one just needs the energy of the spin configuration.
+
+        Parameters
+        filename (string): filename of the simulated annealing raw data file.
+        '''
+        with open(self.Filename, 'r') as f:
+            file_data = f.readlines()
         self.SpinLocations = np.array(np.empty((self.Sites, 2)))
         self.SpinsXYZ = np.empty((self.Sites, 3))
         for i, line in enumerate(file_data[32:]):
@@ -159,6 +169,8 @@ class AnnealedSpinConfiguration:
         Returns
         fig (numpy.ndarray): figure of the SSF and accessible momentum points
         '''
+        self.ExtractMomentsAndPositions()
+
         B1, B2 = FindReciprocalVectors(self.A1, self.A2)
         KX, KY, fig = KMeshForPlotting(B1, B2, self.L1, self.L2, 1, 1, True, True)
         kx, ky = [np.reshape(x, -1) for x in [KX, KY]]
@@ -203,15 +215,16 @@ class AnnealedSpinConfiguration:
         fig (numpy.ndarray): figure of the spin configuration over the , as well
                              as the unit cell used to construct the cluster
         '''
+        self.ExtractMomentsAndPositions()
+
         xyz_to_abc = LocalRotation(np.array([1,1,1])/sqrt3)
         self.SpinsABC = np.einsum('ab,cb->ca', xyz_to_abc, self.SpinsXYZ)
 
         sss, minlength, headwidth = quiver_options
-        fraction, orientation = cb_options
+        fraction, orientation, cm = cb_options
 
         theta = np.arccos(np.clip(self.SpinsABC[:, 2], -1, 1)) / pi * 180
         norm = clr.Normalize(vmin=0,vmax=180)
-        cm = 'viridis'
 
         fig, ax = plt.subplots()
         ax.quiver(self.SpinLocations[:,0], self.SpinLocations[:,1],

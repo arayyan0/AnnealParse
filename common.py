@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as ptch
+from itertools import product
 
 def AddBZ(ax, scale: float):
     '''
@@ -164,10 +165,29 @@ def KMeshForIntegration(B1, B2, L1: int, L2: int):
     KX     (numpy.ndarray):  numpy.meshgrid of x coordinates of shape (2*n*L2+1,2*n*L1+1)
     KY     (numpy.ndarray):  numpy.meshgrid of y coordinates of shape (2*n*L2+1,2*n*L1+1)
     '''
-    oneD1, oneD2 = (np.array(range(0, l))/l for l in [L1, L2])
+    # oneD1, oneD2 = (np.array(range(0, l))/l for l in [L1, L2])
+    # n1, n2 = np.meshgrid(oneD1, oneD2)  # grid points indexing G1/G2 direction
+    # KX, KY = (n1 * B1[i] + n2 * B2[i] for i in [0,1])  # bends meshgrid into shape of BZ
+    oneD1, oneD2 = (np.arange(-l/2, l/2)/l for l in [L1, L2])
     n1, n2 = np.meshgrid(oneD1, oneD2)  # grid points indexing G1/G2 direction
     KX, KY = (n1 * B1[i] + n2 * B2[i] for i in [0,1])  # bends meshgrid into shape of BZ
     return KX, KY
+
+def EZhangBZ(B1, B2, L1: int, L2: int):
+    '''
+    Emily's implementation of the first BZ momenta.
+
+    Parameters
+    B1, B2 (numpy.ndarray): two vectors of shape (2,)
+    L1, L2           (int): density of mesh in B1 and B2 directions.
+
+    Returns
+    ks               (list:  list of first BZ momenta of length L1*L2
+    '''
+    k = lambda k1, k2: (k1/L1)*B1 + (k2/L2)*B2
+    s1, s2 = [np.arange(0, l) for l in [L1, L2]]
+    ks = [ k(k1, k2) for k1, k2 in product(s1, s2) ]
+    return ks
 
 def PlotLineBetweenTwoPoints(ax, A, B):
     '''
@@ -317,6 +337,135 @@ class SymmetryPoints:
             tick_mark.append(l)
         path = np.concatenate(np.array(kpath,dtype=object))
         return path, tick_mark, sym_labels
+
+class FreeEnergyDerivatives:
+    Colors = ["blue", "magenta", "green"] #nondark background
+    # Colors = ["turquoise", "limegreen", "orange"] #dark background
+    # Colors = ["turquoise", "limegreen", "orange", "red"] #dark background
+
+    def __init__(self, x_list, y_list, factor):
+        self.XList = x_list
+        self.YList = y_list
+        self.Factor = factor
+
+    def PseudoMagnetization(self):
+        m = -np.gradient(self.YList, self.XList, edge_order=2) / self.Factor
+        return m
+
+    def PseudoSusceptibility(self):
+        m = self.PseudoMagnetization()
+        chi = np.gradient(m, self.XList, edge_order=2) / self.Factor
+        return chi
+
+    def ThirdDerivative(self):
+        chi = self.PseudoSusceptibility()
+        f = np.gradient(chi, self.XList, edge_order=2) / self.Factor
+        return f
+
+    def PlotSweep(self):
+        m = self.PseudoMagnetization()
+        chi = self.PseudoSusceptibility()
+        # f = self.ThirdDerivative()
+
+        functions = [self.YList, chi, m]
+        # functions = [self.YList, chi, m, f]
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+        fig.subplots_adjust(top=1.5)
+        axes = [ax1, ax2, ax2.twinx()]
+        # axes = [ax1, ax2, ax1.twinx(), ax2.twinx()]
+
+        for function, ax, color in zip(functions, axes, self.Colors):
+            ax.scatter(
+                self.XList,
+                function,
+                marker="o",
+                clip_on=False,
+                s=20,
+                facecolors='none',
+                edgecolors=color,
+                linewidth=1.5)
+            ax.tick_params(axis="y", colors=color)
+        axes[2].axhline(c='gray',ls="-.")
+        # ax2.axhline(color=self.Colors[1], ls="-.")
+        ax2.set_ylim([-0.25,1.25])
+        axes[2].set_ylim([-0.25,1.25])
+
+        # ax2.set_ylim([-10,10])
+
+        ax1.grid(True, axis='x')
+        ax2.grid(True, axis='x')
+
+        plt.xlim(min(self.XList), max(self.XList))
+
+        return fig
+
+    def PseudoSusceptibilityPeaks(self, prom):
+        f = self.PseudoSusceptibility()
+
+        x_peak_list, f_peak_list = [], []
+        f_peaks, f_prominences = find_peaks(f, prominence=prom)
+
+        for f_peak_index in f_peaks:
+            x_peak_list.append(self.XList[f_peak_index])
+            f_peak_list.append(f[f_peak_index])
+
+        return x_peak_list, f_peak_list, f_prominences["prominences"]
+
+class AnisotropySweep(FreeEnergyDerivatives):
+    ELabel = r"$\frac{E_0}{N}$"
+
+    def __init__(self, fixed_var, fixed_val, swept_par_list, e_list):
+        super().__init__(swept_par_list, e_list, 1)
+
+        if (fixed_var == "a"):
+            self.SweptVar = "p"
+        elif (fixed_var == "p"):
+            self.SweptVar = "a"
+
+        self.SweptParList = swept_par_list
+
+        self.MLabel = r"$-\frac{1}{N}\frac{\mathrm{d}E_0}{\mathrm{d}%s}$" % (
+            self.SweptVar)
+        self.ChiLabel = r"$-\frac{1}{N}\frac{\mathrm{d}^2E_0}{\mathrm{d}%s^2}\quad$" % (
+            self.SweptVar)
+        # self.TDLabel = r"-$\frac{1}{N}\frac{\mathrm{d}^3E_0}{\mathrm{d}%s^3}\quad$" % (
+            # self.SweptVar)
+
+    def PlotLabeledSweep(self):
+        fig = self.PlotSweep()
+        for ax, color, label in zip(fig.axes, self.Colors,
+                                    [self.ELabel, self.ChiLabel, self.MLabel]):#, self.TDLabel]):
+            ax.set_ylabel(
+                label,
+                rotation="horizontal",
+                fontsize=12,
+                labelpad=10,
+                color=color)
+        fig.axes[1].set_xlabel(r"$%s$" % self.SweptVar)
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+        return fig
+
+class PsiSweep(FreeEnergyDerivatives):
+    ELabel = r"$\frac{E_0}{N}$"
+    MLabel = r"-$\frac{1}{N}\frac{\mathrm{d}E_0}{\mathrm{d}\psi}$"
+    ChiLabel = r"-$\frac{1}{N}\frac{\mathrm{d}^2E_0}{\mathrm{d}\psi^2}\qquad$"
+
+    def __init__(self, p_list, e_list):
+        super().__init__(p_list, e_list, np.pi)
+
+    def PlotLabeledSweep(self):
+        fig = self.PlotSweep()
+        for ax, color, label in zip(fig.axes, self.Colors,
+                                    [self.ELabel, self.ChiLabel, self.MLabel]):
+            ax.set_ylabel(
+                label,
+                rotation="horizontal",
+                fontsize=12,
+                labelpad=15,
+                color=color)
+        fig.axes[1].set_xlabel(r"$\phi/\pi$")
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+        return fig
 
 #------------------------Some standard global variables------------------------#
 # constants

@@ -7,7 +7,7 @@ import time
 from spin_lib import AnnealedSpinConfiguration
 from common import a1, a2, b1, b2, pi, gen_eps, LocalRotation, FindReciprocalVectors,\
 IndexToPosition, KMeshForIntegration, KMeshForPlotting, PlotLineBetweenTwoPoints,\
-AddBZ, RotateIn2D
+AddBZ, RotateIn2D, EZhangBZ
 
 
 class LSWT(AnnealedSpinConfiguration):
@@ -18,6 +18,7 @@ class LSWT(AnnealedSpinConfiguration):
     Note: Only works if the cluster used contains ONE magnetic unit cell.
 
     Attributes
+    S                       (float): the length of the polarized moment s.t. S^2 = |S_i|^2
     Hx, Hy, Hz      (numpy.ndarray): x, y, and z bond Hamiltonians of shape (3,3)
     T1, T2          (numpy.ndarray): magnetic unit cell vectors of shape(2,)
     NumUniqueBonds            (int): number of unique bonds in the magnetic unit cell
@@ -59,10 +60,13 @@ class LSWT(AnnealedSpinConfiguration):
         super().__init__(filename)
         self.CreateHamiltonians()
 
+        self.S = 1/2
+
         self.T1, self.T2 = self.L1*self.A1, self.L2*self.A2
 
         self.NumUniqueBonds = int(self.Sites*3/2) #easily demonstrated for the hc lattice
         self.BondIndices = np.empty((2*self.NumUniqueBonds, 2), dtype=int)
+        self.ExtractMomentsAndPositions()
 
         self.BondDiffs   = np.empty((2*self.NumUniqueBonds, 2), dtype=np.double)
         self.BondType    = np.empty((2*self.NumUniqueBonds,  ), dtype=np.string_)
@@ -181,12 +185,13 @@ class LSWT(AnnealedSpinConfiguration):
         Adiag = np.diag(self.LocalMagneticField)
         self.Diagonalizer = np.empty((len(klst), 2*self.Sites,2*self.Sites), dtype=np.clongdouble)
         self.Dispersions = np.empty((len(klst), 2*self.Sites), dtype=np.longdouble)
+        cholesky_fail = []
         for i, kp in enumerate(klst): # i indexes the k point
             k = np.dot(R, np.array(kp))
             phase = np.exp(-1j * np.dot(self.BondDiffs, k.T))
             a_matrix_elements = self.AElements*phase
             b_matrix_elements = self.BElements*phase
-            e_matrix_elements = self.AElements*np.conj(phase)
+            e_matrix_elements = self.AElements*phase.conj()
 
             Ak, Bk, Ek = np.zeros((3, self.Sites, self.Sites), dtype=complex)
             for j in range(2*self.NumUniqueBonds): #j indexes the bond.
@@ -199,34 +204,40 @@ class LSWT(AnnealedSpinConfiguration):
 
             Mk = np.block([
                 [Ak           , Bk  ],
-                [np.conj(Bk.T), Ek.T]
-            ])
+                [Bk.T.conj(), Ek.T]
+            ])/2
+
 
             try:
                 Hk = LA.cholesky(Mk)
             except LA.LinAlgError:
-                self.CholeskyFailure = True
+                cholesky_fail.append(True)
                 print(f"Cholesky decomposition has failed at k = {k}.")
             else:
-                self.CholeskyFailure = False
+                cholesky_fail.append(False)
                 tobediagonalized = Hk @ self.PseudoMatrixG @ Hk.T.conj()
                 Lpk, Upk = np.linalg.eigh(tobediagonalized)
 
                 idx = np.argsort(Lpk)[::-1]
                 Lk, Uk = Lpk[idx], Upk[:,idx]
 
-                # Lk[:self.Sites] = Lk[:self.Sites][::-1]
-                # Uk[:,:self.Sites] = np.flip(Uk[:, :self.Sites], axis=1)
+                Lk[:self.Sites] = Lk[:self.Sites][::-1]
+                Uk[:,:self.Sites] = np.flip(Uk[:, :self.Sites], axis=1)
+                # print(Lk)
 
                 Wk = self.PseudoMatrixG @ np.diag(Lk)
                 # print(Lk, Wk)
 
-                self.Dispersions[i] = np.diag(Wk/2)
+                # print(Lk)
+                # print(np.diag(Wk))
+                self.Dispersions[i] = np.diag(Wk)
                 self.Diagonalizer[i] = LA.inv(Hk) @ Uk @ np.sqrt(Wk)
 
+
                 # print(Lk)
-                # print(np.allclose(np.conj(self.Diagonalizer[i].T) @ Mk @ self.Diagonalizer[i], Wk))
-                # print(np.allclose(np.conj(self.Diagonalizer[i].T) @ self.PseudoMatrixG @ self.Diagonalizer[i], self.PseudoMatrixG))
+                # print(np.allclose(self.Diagonalizer[i].T.conj() @ Mk @ self.Diagonalizer[i], Wk))
+                # print(np.allclose(self.Diagonalizer[i].T.conj() @ self.PseudoMatrixG @ self.Diagonalizer[i], self.PseudoMatrixG))
+                # print(np.allclose(self.Diagonalizer[i] @ np.diag(Lk) @ LA.inv(self.Diagonalizer[i]) , self.PseudoMatrixG @ Mk))
                 # print(self.Diagonalizer[i,:,0])
                 # print(self.Diagonalizer[i,:,0+self.Sites])
                 # print(self.Dispersions[i])
@@ -238,9 +249,9 @@ class LSWT(AnnealedSpinConfiguration):
                 # print(self.Diagonalizer[i,0,:self.Sites])
                 # print(self.Diagonalizer[i,self.Sites:,self.Sites:])
                 # print("----------------")
+        self.CholeskyFailure = np.any(np.array(cholesky_fail,dtype=bool))
 
-
-    def PlotMagnonKPath(self, sympoints):
+    def PlotMagnonKPath(self, sympoints,lift):
         '''
         Obtain the spectrum along the given kpath.
 
@@ -252,7 +263,7 @@ class LSWT(AnnealedSpinConfiguration):
         '''
         kpath, tick_mark, sym_labels = sympoints
         n_rot=0
-        self.ObtainMagnonSpectrumAndDiagonalizer(kpath, n_rot*2*pi/3, 0.0)
+        self.ObtainMagnonSpectrumAndDiagonalizer(kpath, n_rot*2*pi/3, lift)
         n = len(kpath)
         fig, ax = plt.subplots()
         ax.plot(range(len(kpath)), self.Dispersions[:,:self.Sites])
@@ -260,6 +271,8 @@ class LSWT(AnnealedSpinConfiguration):
         ax.axhline(y=0, color='0.75', linestyle=':')
         ax.set_ylabel(r'$\omega_{n\mathbf{k}}$', usetex=True)
         plt.xticks(tick_mark, sym_labels, usetex=True)
+        if self.CholeskyFailure:
+            plt.title("warning: Cholesky decomposition failed")
 
         plt.vlines(tick_mark,0,np.max(self.Dispersions),linestyles=':',color='0.75')
         return fig
@@ -275,8 +288,12 @@ class LSWT(AnnealedSpinConfiguration):
         '''
         B1, B2 = FindReciprocalVectors(self.T1, self.T2)
         KX, KY = KMeshForIntegration(B1, B2, L1, L2)
+        # KX, KY = KMeshForIntegration(B1, B2, 10, 10)
         kx, ky = [np.reshape(x, -1) for x in [KX, KY]]
         k = np.stack((kx, ky)).T
+
+        # k = EZhangBZ(B1, B2, L1, L2)
+        # print(len(k))
 
         self.ObtainMagnonSpectrumAndDiagonalizer(k, 0, 0)
 
@@ -291,16 +308,24 @@ class LSWT(AnnealedSpinConfiguration):
 
             # self.BosonWF = self.Diagonalizer[:,:,:self.Sites]
 
-            ###-------calculating reduced moment:
+            ##-------calculating reduced moment:
             total_moment = 0
-            for i, kv in enumerate(k):
-                matrix = self.Diagonalizer[i].T.conj() @ self.ProjectorMatrix @ self.Diagonalizer[i]
-                total_moment = np.sum(np.diag(matrix))
-                # for j in range(self.Sites):
-                #     v = self.Diagonalizer[i, self.Sites:,j]
-                #     total_moment += LA.norm(v)
 
-            self.ReducedMoment = 1 - total_moment/self.Sites/len(k)
+            for i, kv in enumerate(k):
+            #     mat = self.Diagonalizer[i,:,self.Sites:]
+            #     res = np.sum(np.diag(mat.T.conj() @ mat))
+            #     total_moment += res
+                for j in range(self.Sites):
+                    u = self.Diagonalizer[i, :self.Sites, j]
+                    v = self.Diagonalizer[i, self.Sites:, j]
+                    total_moment += v.conj() @ v
+
+            # for m in range(self.Sites):
+            #     term2 = self.Diagonalizer[:, m, self.Sites:].conj() * self.Diagonalizer[:, m, self.Sites:]
+            #     total_moment += term2.sum(axis=-1).sum(axis=-1)
+
+            # self.ReducedMoment = 1-total_moment/self.Sites/len(k)/2+1/2
+            self.ReducedMoment = 1-total_moment/self.Sites/len(k)/(1/2)
 
     def PlotLowestBand(self, n1, n2, m1, m2, lift):
         '''
@@ -320,24 +345,27 @@ class LSWT(AnnealedSpinConfiguration):
         k = np.stack((kx, ky)).T
 
         self.ObtainMagnonSpectrumAndDiagonalizer(k, 0, lift)
-        lowest_band = np.reshape(self.Dispersions[:,self.Sites-1], KX.shape)
-
+        lowest_band = np.reshape(self.Dispersions[:,0], KX.shape)
+        if self.CholeskyFailure:
+            plt.title("beware: cholesky decomposition failed at some isolated points")
         scale = 2*np.pi
-        c = ax.pcolormesh(KX/scale, KY/scale, np.real(lowest_band), cmap='afmhot')
-        cbar = fig.colorbar(c, fraction=0.05)
+        try:
+            c = ax.pcolormesh(KX/scale, KY/scale, np.real(lowest_band), cmap='afmhot')
+            cbar = fig.colorbar(c, fraction=0.05)
+            cbar.ax.set_title(r'$\omega_{\vec{k},0}$')
+        except:
+            c = ax.pcolormesh(KX/scale, KY/scale, np.zeros(lowest_band.shape), cmap='afmhot')
+        else:
+            g = np.zeros((2,))
+            PlotLineBetweenTwoPoints(ax, g, B1/scale)
+            PlotLineBetweenTwoPoints(ax, g, B2/scale)
+            ax.annotate('B1', B1/scale,fontsize=10,color="white" )
+            ax.annotate('B2', B2/scale,fontsize=10,color="white" )
 
-        cbar.ax.set_title(r'$\omega_{\vec{k},0}$')
+            ax.axis("equal")
+            ax.set_aspect('equal')
 
-        g = np.zeros((2,))
-        PlotLineBetweenTwoPoints(ax, g, B1/scale)
-        PlotLineBetweenTwoPoints(ax, g, B2/scale)
-        ax.annotate('B1', B1/scale,fontsize=10,color="white" )
-        ax.annotate('B2', B2/scale,fontsize=10,color="white" )
-
-        ax.axis("equal")
-        ax.set_aspect('equal')
-
-        AddBZ(ax, scale)
+            AddBZ(ax, scale)
         return fig
 
 #------------------------Some standard global variables------------------------#
