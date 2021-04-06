@@ -60,7 +60,7 @@ class LSWT(AnnealedSpinConfiguration):
         super().__init__(filename)
         self.CreateHamiltonians()
 
-        self.S = 1/2
+        self.MomentSize = 1/2
 
         self.T1, self.T2 = self.L1*self.A1, self.L2*self.A2
 
@@ -78,6 +78,13 @@ class LSWT(AnnealedSpinConfiguration):
         self.LocalMagneticField = np.array([ np.sum(
                                              self.HzzElements[3*i:3*(i+1)]
                                              ) for i in range(self.Sites) ])
+
+        self.CalculateBondEnergies()
+
+        self.EquilibriumCheck = np.array([ np.sum(
+                                             self.FElements[3*i:3*(i+1)]
+                                             ) for i in range(self.Sites) ])
+        # print("equilibrium check: ", np.sum(self.EquilibriumCheck))
 
         self.LSWTEnergyDensity = np.sum(self.LocalMagneticField)/2/self.Sites
         energy_flag = np.abs(self.MCEnergyDensity - self.LSWTEnergyDensity) > gen_eps
@@ -105,6 +112,7 @@ class LSWT(AnnealedSpinConfiguration):
         self.Hz = np.array([[J1, Gz, Gp],
                             [Gz, J1, Gp],
                             [Gp, Gp, J1 + Kz]])
+
 
     def DetermineBondCharacteristics(self):
         '''
@@ -164,6 +172,27 @@ class LSWT(AnnealedSpinConfiguration):
                        + 1j * (self.BondTransH[:, 0, 1] + self.BondTransH[:, 1, 0])
                        )
         self.HzzElements = self.BondTransH[:, 2, 2]
+
+        self.FElements = self.BondTransH[:, 0, 2] + 1j*self.BondTransH[:, 1, 2]
+
+    def CalculateBondEnergies(self):
+        '''
+        Calculates energy contribution from the x, y, and z bonds.
+        '''
+        [Kx, Ky, Kz], [Gx, Gy, Gz], Gp, J1= self.HamiltonianParameters
+        Exarray, Eyarray, Ezarray = [], [], []
+        for i in range(2*self.NumUniqueBonds):
+            bond_type = self.BondType[i]
+            e = self.HzzElements[i]
+            if bond_type == b'x':
+                Exarray.append(e)
+            elif bond_type ==b'y':
+                Eyarray.append(e)
+            elif bond_type==b'z':
+                Ezarray.append(e)
+
+        self.Ex,self.Ey,self.Ez = [np.sum(Earray)/2/self.Sites for Earray in [Exarray, Eyarray, Ezarray]]
+
 
     def ObtainMagnonSpectrumAndDiagonalizer(self, klst, angle, offset):
         '''
@@ -261,7 +290,7 @@ class LSWT(AnnealedSpinConfiguration):
         Returns
         fig           (matplotlib.Figure): plot of magnon dispersion along kpath
         '''
-        kpath, tick_mark, sym_labels = sympoints
+        kpath, tick_mark, sym_labels, _ = sympoints
         n_rot=0
         self.ObtainMagnonSpectrumAndDiagonalizer(kpath, n_rot*2*pi/3, lift)
         n = len(kpath)
@@ -269,7 +298,7 @@ class LSWT(AnnealedSpinConfiguration):
         ax.plot(range(len(kpath)), self.Dispersions[:,:self.Sites])
 
         ax.axhline(y=0, color='0.75', linestyle=':')
-        ax.set_ylabel(r'$\omega_{n\mathbf{k}}$', usetex=True)
+        ax.set_ylabel(r'$\frac{\omega_{\mathbf{k}}^s}{J}$', rotation=0,labelpad=10)
         plt.xticks(tick_mark, sym_labels, usetex=True)
         if self.CholeskyFailure:
             plt.title("warning: Cholesky decomposition failed")
@@ -300,32 +329,32 @@ class LSWT(AnnealedSpinConfiguration):
 
         if self.CholeskyFailure:
             self.ReducedMoment = np.nan
+            self.MagnonGap = np.nan
+            self.SWEnergyCorrection = np.nan
+            self.SWEnergy= np.nan
+
         else:
-            # obtain the boson operators:
-            # inverse_diagonalizer = np.einsum('ab,ecb,cd->ebd',self.PseudoMatrixG,
-                                                      # np.conj(self.Diagonalizer),
-                                                      # self.PseudoMatrixG)
-
-            # self.BosonWF = self.Diagonalizer[:,:,:self.Sites]
-
-            ##-------calculating reduced moment:
-            total_moment = 0
-
-            for i, kv in enumerate(k):
-            #     mat = self.Diagonalizer[i,:,self.Sites:]
-            #     res = np.sum(np.diag(mat.T.conj() @ mat))
-            #     total_moment += res
-                for j in range(self.Sites):
+            total_moment_lst = []
+            energy_lst = []
+            for j in range(self.Sites):
+                energy = 0
+                total_moment = 0
+                for i, kv in enumerate(k):
                     u = self.Diagonalizer[i, :self.Sites, j]
                     v = self.Diagonalizer[i, self.Sites:, j]
                     total_moment += v.conj() @ v
+                    energy += self.Dispersions[i, j]
+                energy_lst.append(energy)
+                total_moment_lst.append(total_moment)
+            # print("energy branches:", self.S*np.array(energy_lst)/len(k)/self.Ssites)
+            # print("moment reduction:", np.array(total_moment_lst)/len(k)/self.S)
 
-            # for m in range(self.Sites):
-            #     term2 = self.Diagonalizer[:, m, self.Sites:].conj() * self.Diagonalizer[:, m, self.Sites:]
-            #     total_moment += term2.sum(axis=-1).sum(axis=-1)
+            self.ReducedMoment = 1-np.sum(np.array(total_moment_lst)/len(k)/self.Sites/self.MomentSize)
 
-            # self.ReducedMoment = 1-total_moment/self.Sites/len(k)/2+1/2
-            self.ReducedMoment = 1-total_moment/self.Sites/len(k)/(1/2)
+            self.SWEnergyCorrection = np.sum(self.MomentSize*np.array(energy_lst)/len(k)/self.Sites)
+            self.SWEnergy = self.MCEnergyDensity*self.MomentSize*(self.MomentSize+1) + self.SWEnergyCorrection
+
+            self.MagnonGap = np.min(self.Dispersions[:,0])
 
     def PlotLowestBand(self, n1, n2, m1, m2, lift):
         '''

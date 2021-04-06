@@ -21,15 +21,20 @@ def AddBZ(ax, scale: float):
     #second crystal BZ
     bz3 = ptch.RegularPolygon((0, 0), 6, np.linalg.norm(b1)/scale, 0, fill=False,color='g')
     ax.add_patch(bz3)
-    #sqrt(3) x sqrt(3) reduced 1st BZ
-    bz4 = ptch.RegularPolygon((0, 0), 6, np.linalg.norm(b1 + b2)/3/scale, 0, fill=False,color='b')
-    ax.add_patch(bz4)
+    # #sqrt(3) x sqrt(3) reduced 1st BZ
+    # bz4 = ptch.RegularPolygon((0, 0), 6, np.linalg.norm(b1 + b2)/3/scale, 0, fill=False,color='b')
+    # ax.add_patch(bz4)
 
     ax.set_xlim(-7.5/scale, 7.5/scale)
     ax.set_ylim(-7.5/scale, 7.5/scale)
 
-    ax.set_xlabel(r'$k_x$'+f'/{scale:.3f}')
-    ax.set_ylabel(r'$k_y$'+f'/{scale:.3f}')
+    if abs(scale - 2*pi) <= 10**(-8):
+        denom = f'/$2\pi$'
+    else:
+        denom = f'/{scale:.3f}'
+
+    ax.set_xlabel(r'$k_x$'+denom)
+    ax.set_ylabel(r'$k_y$'+denom)
     return ax
 
 def FindReciprocalVectors(A1, A2):
@@ -141,8 +146,8 @@ def KMeshForPlotting(B1, B2, L1: int, L2: int, m1: int, m2: int, addbz: bool, ad
     fig, ax = plt.subplots()
     if addPoints: #whether to plot BZ or not
         ax.plot(KX/scale, KY/scale, '+', c='grey')
-    PlotLineBetweenTwoPoints(ax, g/scale, B1/scale)
-    PlotLineBetweenTwoPoints(ax, g/scale, B2/scale)
+    # PlotLineBetweenTwoPoints(ax, g/scale, B1/scale)
+    # PlotLineBetweenTwoPoints(ax, g/scale, B2/scale)
 
     ax.set_aspect('equal')
     # ax.axis("equal")
@@ -336,7 +341,7 @@ class SymmetryPoints:
             l = l + path.shape[0]
             tick_mark.append(l)
         path = np.concatenate(np.array(kpath,dtype=object))
-        return path, tick_mark, sym_labels
+        return path, tick_mark, sym_labels, sym_values
 
 class FreeEnergyDerivatives:
     Colors = ["blue", "magenta", "green"] #nondark background
@@ -367,28 +372,29 @@ class FreeEnergyDerivatives:
         chi = self.PseudoSusceptibility()
         # f = self.ThirdDerivative()
 
-        functions = [self.YList, chi, m]
+        functions = [self.YList, m, chi]
         # functions = [self.YList, chi, m, f]
         fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
-        fig.subplots_adjust(top=1.5)
-        axes = [ax1, ax2, ax2.twinx()]
+        # fig.subplots_adjust(top=1.5)
+        axes = [ax1, ax1.twinx(), ax2]
         # axes = [ax1, ax2, ax1.twinx(), ax2.twinx()]
 
         for function, ax, color in zip(functions, axes, self.Colors):
+            print(function, ax, color)
             ax.scatter(
                 self.XList,
                 function,
-                marker="o",
-                clip_on=False,
+                marker=".",
+                # clip_on=False,
                 s=20,
                 facecolors='none',
                 edgecolors=color,
                 linewidth=1.5)
             ax.tick_params(axis="y", colors=color)
-        axes[2].axhline(c='gray',ls="-.")
+        # axes[2].axhline(c='gray',ls="-.")
         # ax2.axhline(color=self.Colors[1], ls="-.")
-        ax2.set_ylim([-0.25,1.25])
-        axes[2].set_ylim([-0.25,1.25])
+        # ax2.set_ylim([-0.25,1.25])
+        # axes[2].set_ylim([-0.25,1.25])
 
         # ax2.set_ylim([-10,10])
 
@@ -396,6 +402,7 @@ class FreeEnergyDerivatives:
         ax2.grid(True, axis='x')
 
         plt.xlim(min(self.XList), max(self.XList))
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
         return fig
 
@@ -415,12 +422,15 @@ class AnisotropySweep(FreeEnergyDerivatives):
     ELabel = r"$\frac{E_0}{N}$"
 
     def __init__(self, fixed_var, fixed_val, swept_par_list, e_list):
-        super().__init__(swept_par_list, e_list, 1)
 
         if (fixed_var == "a"):
-            self.SweptVar = "p"
+            self.SweptVar = "\psi"
+            factor = pi
         elif (fixed_var == "p"):
-            self.SweptVar = "a"
+            self.SweptVar = "g"
+            factor = 1
+
+        super().__init__(swept_par_list, e_list, factor)
 
         self.SweptParList = swept_par_list
 
@@ -433,7 +443,7 @@ class AnisotropySweep(FreeEnergyDerivatives):
 
     def PlotLabeledSweep(self):
         fig = self.PlotSweep()
-        for ax, color, label in zip(fig.axes, self.Colors,
+        for ax, color, label in zip(fig.axes, ["blue", "green", "magenta"],
                                     [self.ELabel, self.ChiLabel, self.MLabel]):#, self.TDLabel]):
             ax.set_ylabel(
                 label,
@@ -441,29 +451,10 @@ class AnisotropySweep(FreeEnergyDerivatives):
                 fontsize=12,
                 labelpad=10,
                 color=color)
-        fig.axes[1].set_xlabel(r"$%s$" % self.SweptVar)
-        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-        return fig
-
-class PsiSweep(FreeEnergyDerivatives):
-    ELabel = r"$\frac{E_0}{N}$"
-    MLabel = r"-$\frac{1}{N}\frac{\mathrm{d}E_0}{\mathrm{d}\psi}$"
-    ChiLabel = r"-$\frac{1}{N}\frac{\mathrm{d}^2E_0}{\mathrm{d}\psi^2}\qquad$"
-
-    def __init__(self, p_list, e_list):
-        super().__init__(p_list, e_list, np.pi)
-
-    def PlotLabeledSweep(self):
-        fig = self.PlotSweep()
-        for ax, color, label in zip(fig.axes, self.Colors,
-                                    [self.ELabel, self.ChiLabel, self.MLabel]):
-            ax.set_ylabel(
-                label,
-                rotation="horizontal",
-                fontsize=12,
-                labelpad=15,
-                color=color)
-        fig.axes[1].set_xlabel(r"$\phi/\pi$")
+        if self.SweptVar == "g":
+            fig.axes[1].set_xlabel(r"$%s$" % self.SweptVar)
+        elif self.SweptVar == "\psi":
+            fig.axes[1].set_xlabel(r"$%s/\pi$" % self.SweptVar)
         fig.tight_layout(rect=[0, 0.03, 1, 0.95])
         return fig
 

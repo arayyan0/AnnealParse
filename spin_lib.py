@@ -58,6 +58,17 @@ def WhichUnitCell(hc_or_kek: int, type: int, sublattice: int):
                 2 * (a1 + a2) / 3 + 2 * ((a1 + a2) / 3 - a2) + a2,
             ])
 
+        elif sublattice == 6:
+            A1, A2 = 2*a1 - a2, 2*a2 - a1
+            sub_list = np.array([
+                A2+a1-a2,
+                (A1+A2)/3,
+                A2+a1-a2+a1-a2,
+                (A1+A2)/3+a2,
+                (A1+A2),
+                (A1+A2)/3+a1,
+            ])
+
     # Kekule cluster
     elif hc_or_kek == 1:
         if sublattice == 6:
@@ -119,11 +130,11 @@ class AnnealedSpinConfiguration:
         with open(self.Filename, 'r') as f:
             file_data = f.readlines()
 
-        hc_or_kek, type = [int(x) for x in file_data[2].split()]
+        hc_or_kek, self.Type = [int(x) for x in file_data[2].split()]
         self.S, self.L1, self.L2 = [int(x) for x in file_data[4].split()]
         self.Sites = self.S*self.L1*self.L2
         self.A1, self.A2, self.SublatticeVectors = \
-                                        WhichUnitCell(hc_or_kek, type, self.S)
+                                        WhichUnitCell(hc_or_kek, self.Type, self.S)
 
         T_i = np.double(file_data[6])             #initial annealing temperature
         T_f = np.double(file_data[8])               #final annealing temperature
@@ -156,8 +167,11 @@ class AnnealedSpinConfiguration:
             self.SpinsXYZ[i] = np.array(list(map(np.longdouble,[Sx,Sy,Sz])))
             self.SpinLocations[i] = IndexToPosition(self.A1, self.A2, self.SublatticeVectors,
                                                       map(int,[n1,n2,sub]))
+        xyz_to_abc = LocalRotation(np.array([1,1,1])/sqrt3)
+        self.SpinsABC = np.einsum('ab,cb->ca', xyz_to_abc, self.SpinsXYZ)
 
-    def CalculateAndPlotSSF(self):
+
+    def CalculateAndPlotSSF(self, cb_options):
         '''
         Calculates the static structure factor (SSF) defined as
                 s_k/N = 1/N^2 sum_{ij} S_i . S_j exp(-i k.(r_i - r_j) )
@@ -172,7 +186,7 @@ class AnnealedSpinConfiguration:
         self.ExtractMomentsAndPositions()
 
         B1, B2 = FindReciprocalVectors(self.A1, self.A2)
-        KX, KY, fig = KMeshForPlotting(B1, B2, self.L1, self.L2, 1, 1, True, True)
+        KX, KY, fig = KMeshForPlotting(B1, B2, self.L1, self.L2, 3, 3, True, False)
         kx, ky = [np.reshape(x, -1) for x in [KX, KY]]
         k = np.stack((kx, ky)).T
         ax = fig.axes[0]
@@ -185,10 +199,11 @@ class AnnealedSpinConfiguration:
             phase_j = np.exp(-1j * np.einsum('i,ji', kv, self.SpinLocations))
             phase_mat = np.einsum('i,j->ij', phase_i, phase_j)
             s_kflat[i] = (SdotS_mat * phase_mat).sum()/ self.Sites**2
-            ax.annotate(f'$\quad${np.real(s_kflat[i]):.3f}',
-                        kv/scale,
-                        fontsize=4,
-                        color = 'lightgray')
+            # ax.annotate(f'$\quad${np.real(s_kflat[i]):.6f}',
+            #             kv/scale,
+            #             fontsize=4,
+            #             color = 'lightgray')
+        # print(self.SpinsXYZ)
 
         ssf = np.reshape(s_kflat, KX.shape)
 
@@ -198,14 +213,15 @@ class AnnealedSpinConfiguration:
             print("Warning: SSF has complex values. Please recheck calculation.")
 
         #note: we are plotting the real part, since the SSF should be real.
-        c = ax.scatter(KX/scale, KY/scale, c=np.real(ssf), cmap='afmhot', edgecolors="none")
-        cbar = fig.colorbar(c, fraction=0.05)
-        cbar.ax.set_title(r'$s_\vec{k}/N$')
 
-        AddBZ(ax, scale)
+        fraction, orientation, colormap = cb_options
+        c = ax.scatter(KX/scale, KY/scale, c=np.real(ssf), cmap=colormap, edgecolors="none")
+        cbar = fig.colorbar(c, fraction=fraction, orientation=orientation)
+        cbar.ax.set_title(r'$s_\mathbf{k}/N$')
+
         return fig
 
-    def PlotSpins(self, quiver_options, cb_options):
+    def PlotSpins(self, quiver_options, cb_options,signstructure):
         '''
         Plots the spins (in the ABC basis) over the honeycomb plane, with color
         indicating the angle made with the vector c* = (1,1,1)/sqrt(3) in
@@ -216,9 +232,6 @@ class AnnealedSpinConfiguration:
                              as the unit cell used to construct the cluster
         '''
         self.ExtractMomentsAndPositions()
-
-        xyz_to_abc = LocalRotation(np.array([1,1,1])/sqrt3)
-        self.SpinsABC = np.einsum('ab,cb->ca', xyz_to_abc, self.SpinsXYZ)
 
         sss, minlength, headwidth = quiver_options
         fraction, orientation, cm = cb_options
@@ -234,28 +247,86 @@ class AnnealedSpinConfiguration:
                   minlength=minlength,
                   headwidth=headwidth)
         ax.axis("off")
-        ax.axis("equal")
         # ax.set_facecolor('black')
+        ax.axis("equal") #zooms in on arrows
 
         sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
         cb = plt.colorbar(sm,
             fraction=fraction,
             # pad=0,
             orientation=orientation)
-        cb.ax.set_title(r'$\theta_{\mathbf{c}^*}$')
+        cb.ax.set_title(r'$\theta_{[111]}\quad \left(^\circ\right)$')
+        cb.set_ticks(np.linspace(0,180,6+1))
+        cb.set_ticklabels(['0','30','60','90', '120', '150', '180'])
 
         #adding honeycomb plane
-        for x in range(-1,self.L1+1):
-            for y in range(-1,self.L2+1):
+        for x in range(0,self.L1+1):
+            for y in range(0,self.L2+1):
                 center1 = x * self.A1 + y * self.A2
                 hex2 = ptch.RegularPolygon(
                 center1+a1, 6, 1 / sqrt3, 0, fill=False, linewidth=0.2,color='black')
+
+                hex3 = ptch.RegularPolygon(
+                center1, 6, 1 / sqrt3, 0, fill=False, linewidth=0.2,color='black')
+
+
                 ax.add_patch(hex2)
+                ax.add_patch(hex3)
+
+        if signstructure == True:
+            plabels=self.CalculateSignStructure()
+            i=0
+            for py in range(0,3):
+                for px in range(0,3):
+                    pos = 2*(self.A1 + self.A2)/3 + (-self.A1) + px*self.A1 + py*self.A2
+                    ax.annotate(plabels[i],
+                                pos,
+                                fontsize=30,
+                    )
+                    i += 1
+            print(plabels)
+            ax.axis("equal") #shows all signs
+
 
         #adding unit cell used for the calculation
-        g = np.zeros(2)
-        PlotLineBetweenTwoPoints(ax, g, self.A1)
-        PlotLineBetweenTwoPoints(ax, g, self.A2)
-        PlotLineBetweenTwoPoints(ax, self.A1, self.A1+self.A2)
-        PlotLineBetweenTwoPoints(ax, self.A2, self.A1+self.A2)
+        # g = np.zeros(2)
+        # PlotLineBetweenTwoPoints(ax, g, self.A1)
+        # PlotLineBetweenTwoPoints(ax, g, self.A2)
+        # PlotLineBetweenTwoPoints(ax, self.A1, self.A1+self.A2)
+        # PlotLineBetweenTwoPoints(ax, self.A2, self.A1+self.A2)
         return fig
+
+    def CalculateSignStructure(self):
+        #currently only works for rh2 18-site cluster
+        if not (self.Type == 2 and self.S == 2 and self.L1 == 3 and self.L2 == 3):
+            print("you must expand CalculateSignStructure to include this cluster shape")
+        else:
+            self.ExtractMomentsAndPositions()
+            for i in range(0, 18, 2): #flip sign of spins on B sublattice
+                self.SpinsXYZ[i] = - self.SpinsXYZ[i]
+
+            signs = np.sign(self.SpinsXYZ)
+
+            #second index tracks z,y,x
+            p1a = np.array([signs[0,2],signs[1,1],signs[6,0],signs[11,2],signs[10,1],signs[5,0]])
+            p2a = np.array([signs[2,2],signs[3,1],signs[8,0],signs[7,2],signs[6,1],signs[1,0]])
+            p3a = np.array([signs[4,2],signs[5,1],signs[10,0],signs[9,2],signs[8,1],signs[3,0]])
+
+            p4a = np.array([signs[6,2],signs[7,1],signs[12,0],signs[17,2],signs[16,1],signs[11,0]])
+            p5a = np.array([signs[8,2],signs[9,1],signs[14,0],signs[13,2],signs[12,1],signs[7,0]])
+            p6a = np.array([signs[10,2],signs[11,1],signs[16,0],signs[15,2],signs[14,1],signs[9,0]])
+
+            p7a = np.array([signs[12,2],signs[13,1],signs[0,0],signs[5,2],signs[4,1],signs[17,0]])
+            p8a = np.array([signs[14,2],signs[15,1],signs[2,0],signs[1,2],signs[0,1],signs[13,0]])
+            p9a = np.array([signs[16,2],signs[17,1],signs[4,0],signs[3,2],signs[2,1],signs[15,0]])
+
+            plabel = []
+            for pa in [p1a,p2a,p3a,p4a,p5a,p6a,p7a,p8a,p9a]:
+                p = np.int(np.prod(pa))
+                if p == -1:
+                    plabel.append('?')
+                if p == 1 and pa[0] == 1:
+                    plabel.append('+')
+                if p == 1 and pa[0] == -1:
+                    plabel.append('-')
+            return plabel
