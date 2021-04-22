@@ -9,14 +9,15 @@ import sys
 
 import pickle
 
-# which = 'p=0.4'
+# which = 'a=0'
 # which = 'a=0.2'
-which = 'p=0.5'
+# which = 'p=0.4'
+which='denser24/zz'
 # generate filenames
-for number in range(5,5+1):
+for number in range(8,8+1):
     run = f'{number}'
     # run = 'f'
-    for version in range(0,1):
+    for version in range(0,0+1):
         data_folder = f'out/{which}/jobrun_{run}/v_{version}/'
         print(data_folder)
         plot_folder = data_folder+f'plots/'
@@ -59,22 +60,25 @@ for number in range(5,5+1):
             # plt.show()
             # plt.close()
 
-            # cb_options =[0.04, 'vertical', 'terrain']
-            # fig = spinstuff.CalculateAndPlotSSF(cb_options)
-            # fig.axes[0].set_facecolor('black')
-            # plt.savefig(plot_folder+f'ssf_p_{p:.3f}_a_{a:.3f}.pdf')
-            # # plt.show()
-            # plt.close()
-            #
-            quiver_options = [20, 1.5, 4]       #[scale, minlength, headwidth] 18-site
-            cb_options = [0.04, 'vertical', 'coolwarm']    #[fraction, orientation, colormap]
-            signstructure = True
-            fig = spinstuff.PlotSpins(quiver_options, cb_options,signstructure)
-            plt.savefig(plot_folder+f'spins_p_{p:.3f}_a_{a:.3f}.pdf')
-            fig.tight_layout(rect=[0,0.03,1,0.95])
-            plt.show()
+            cb_options =[0.04, 'vertical', 'gnuplot']
+            usetex=False
+            setticks=[False,1]
+            fig = spinstuff.CalculateAndPlotSSF(cb_options, usetex,setticks)
+            fig.axes[0].set_facecolor('black')
+            plt.savefig(plot_folder+f'ssf_p_{p:.3f}_a_{a:.3f}.pdf')
+            # plt.show()
             plt.close()
             #
+            quiver_options = [20, 1.0, 4]       #[scale, minlength, headwidth] 18-site
+            cb_options = [0.04, 'vertical', 'seismic']    #[fraction, orientation, colormap]
+            signstructure =False
+            usetex = False
+            fig = spinstuff.PlotSpins(quiver_options, cb_options, signstructure, usetex)
+            plt.savefig(plot_folder+f'spins_p_{p:.3f}_a_{a:.3f}.pdf')
+            fig.tight_layout(rect=[0,0.03,1,0.95])
+            # plt.show()
+            plt.close()
+
             # kp = SymmetryPoints().MakeKPath(["X","G","M2","Gp1","M1","G"],25)
             # fig = spinstuff.PlotMagnonKPath(kp,lift)
             # # fig.axes[0].set_ylim(0,0.01)
@@ -91,29 +95,30 @@ for number in range(5,5+1):
         Exarray, Eyarray, Ezarray = map(np.array, [Exlst,Eylst,Ezlst])
 
         #---------------------------sweeping over a
-        idx = np.argsort(aarray)
-        parray, aarray = parray[idx], aarray[idx]
+        # idx = np.argsort(aarray)
+        # parray, aarray = parray[idx], aarray[idx]
+        # #
+        # earray = earray[idx]
+        # fig = AnisotropySweep('p', parray[0], aarray, earray).PlotLabeledSweep()
+        # plt.savefig(plot_folder+f'energy.pdf')
+        # # plt.show()
+        # plt.close()
         #
-        earray = earray[idx]
-        fig = AnisotropySweep('p', parray[0], aarray, earray).PlotLabeledSweep()
-        plt.savefig(plot_folder+f'energy.pdf')
-        plt.show()
-        plt.close()
-
-        Exarray, Eyarray, Ezarray = Exarray[idx], Eyarray[idx], Ezarray[idx]
-        Delta = (Exarray+Eyarray)/2 - Ezarray
-        fig, [ax1, ax2]=plt.subplots(2,1, sharex=True)
-        ax1.scatter(aarray, Delta/np.abs(earray), marker=".", facecolors='none', edgecolors='red')
-        ax2.scatter(aarray,np.gradient(Delta,aarray,edge_order=2),marker=".", facecolors='none', edgecolors='red')
-        ax1.grid(True)
-        ax2.grid(True)
-        ax2.set_xlabel(r'$g$')
-        ax1.set_ylabel(r'$\Delta/|E|$')
-        ax2.set_ylabel(r'$\partial\Delta$')
-        fig.tight_layout(rect=[0,0.03,1,0.95])
-        plt.savefig(plot_folder+f'bond_energy.pdf')
-        plt.show()
-        plt.close()
+        # Exarray, Eyarray, Ezarray = Exarray[idx], Eyarray[idx], Ezarray[idx]
+        # Delta = (Exarray+Eyarray)/2 - Ezarray
+        # fig, [ax1, ax2]=plt.subplots(2,1, sharex=True)
+        # ax1.scatter(aarray, Delta/np.abs(earray), marker=".", facecolors='none', edgecolors='red')
+        # ax2.scatter(aarray,np.gradient(Delta,aarray,edge_order=2),marker=".", facecolors='none', edgecolors='red')
+        # ax1.grid(True)
+        # ax2.grid(True)
+        # print(repr(aarray), repr(Delta/np.abs(earray)), repr(np.gradient(Delta,aarray,edge_order=2)))
+        # ax2.set_xlabel(r'$g$')
+        # ax1.set_ylabel(r'$\Delta/|E|$')
+        # ax2.set_ylabel(r'$\partial\Delta$')
+        # fig.tight_layout(rect=[0,0.03,1,0.95])
+        # plt.savefig(plot_folder+f'bond_energy.pdf')
+        # # plt.show()
+        # plt.close()
         #
         #
         # momentlst, swecorrlst = momentlst[idx], swecorrlst[idx]
@@ -137,33 +142,37 @@ for number in range(5,5+1):
         # plt.show()
         # plt.close()
     # # ---------------------------sweeping over p
-        # idx = np.argsort(parray)
-        # parray, aarray = parray[idx], aarray[idx]
-        #
-        # earray = earray[idx]
-        # fig = AnisotropySweep('a', aarray[0], parray, earray).PlotLabeledSweep()
-        # fig.tight_layout(rect=[0,0.03,1,0.95])
-        # # plt.savefig(plot_folder+f'energy.pdf')
-        # plt.show()
-        # plt.close()
-        #
-        # Exarray, Eyarray, Ezarray = Exarray[idx], Eyarray[idx], Ezarray[idx]
-        # Delta = (Exarray+Eyarray)/2 - Ezarray
-        #
-        # fig, [ax1, ax2]=plt.subplots(2,1, sharex=True)
-        # ax1.scatter(parray, Delta/np.abs(earray), marker=".", facecolors='none', edgecolors='red')
-        # ax2.scatter(parray,np.gradient(Delta,parray,edge_order=2),marker=".", facecolors='none', edgecolors='red')
-        # ax1.grid(True)
-        # ax2.grid(True)
-        # # ax1.set_ylim(-0.025,0.025)
-        # # ax2.set_ylim(-2,2)
-        # ax2.set_xlabel(r'$\psi/\pi$')
-        # ax1.set_ylabel(r'$\Delta/|E|$')
-        # ax2.set_ylabel(r'$\partial\Delta$')
-        # fig.tight_layout(rect=[0,0.03,1,0.95])
-        # plt.savefig(plot_folder+f'bond_energy.pdf')
-        # plt.show()
-        # plt.close()
+        idx = np.argsort(parray)
+        parray, aarray = parray[idx], aarray[idx]
+
+        earray = earray[idx]
+        fig = AnisotropySweep('a', aarray[0], parray, earray).PlotLabeledSweep()
+        fig.tight_layout(rect=[0,0.03,1,0.95])
+        plt.savefig(plot_folder+f'energy.pdf')
+        plt.show()
+        plt.close()
+
+        Exarray, Eyarray, Ezarray = Exarray[idx], Eyarray[idx], Ezarray[idx]
+        Delta = (Exarray+Eyarray)/2 - Ezarray
+
+        print(repr(parray[46:len(parray)-1]))
+        print(repr((Delta/np.abs(earray))[46:len(parray)-1]))
+        # print(repr(np.gradient(Delta,parray,edge_order=2)))
+
+        fig, [ax1, ax2]=plt.subplots(2,1, sharex=True)
+        ax1.scatter(parray, Delta/np.abs(earray), marker=".", facecolors='none', edgecolors='red')
+        ax2.scatter(parray,np.gradient(Delta,parray,edge_order=2),marker=".", facecolors='none', edgecolors='red')
+        ax1.grid(True)
+        ax2.grid(True)
+        # ax1.set_ylim(-0.025,0.025)
+        # ax2.set_ylim(-2,2)
+        ax2.set_xlabel(r'$\psi/\pi$')
+        ax1.set_ylabel(r'$\Delta/|E|$')
+        ax2.set_ylabel(r'$\partial\Delta$')
+        fig.tight_layout(rect=[0,0.03,1,0.95])
+        plt.savefig(plot_folder+f'bond_energy.pdf')
+        plt.show()
+        plt.close()
 
         # momentlst, swecorrlst = momentlst[idx], swecorrlst[idx]
         # magnongaplst = magnongaplst[idx]

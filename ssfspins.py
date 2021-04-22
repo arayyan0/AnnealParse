@@ -16,8 +16,10 @@ spinstuff = AnnealedSpinConfiguration(input_data_filename)
 print(spinstuff.MCEnergyDensity)
 
 # ##--------Construct and Plot SSF
-cb_options =[0.04, 'vertical', 'terrain']    #[fraction, orientation, colormap]
-fig = spinstuff.CalculateAndPlotSSF(cb_options)
+cb_options =[0.04, 'vertical', 'inferno']    #[fraction, orientation, colormap]
+usetex=True
+setticks=[True,1,5]
+fig = spinstuff.CalculateAndPlotSSF(cb_options,usetex,setticks)
 fig.axes[0].set_facecolor('black')
 plt.savefig(f'ssf_{output_data_filename}.pdf')
 plt.show()
@@ -25,12 +27,16 @@ plt.close()
 #
 ##--------Plot spin configuration
 # quiver_options = [10, 1, 4]       #[scale, minlength, headwidth] 4-site
-quiver_options = [12, 3, 4]       #[scale, minlength, headwidth] 18-site
+quiver_options = [0.92*35, 0.5, 3.5]       #[scale, minlength, headwidth] 18-site
 
-cb_options = [0.04, 'horizontal', 'winter']    #[fraction, orientation, colormap]
-signstructure = True
-fig = spinstuff.PlotSpins(quiver_options, cb_options, signstructure)
+# for cm in ['viridis', 'plasma','inferno','magma','cividis']:
+cm = 'gnuplot'
+cb_options = [0.04, 'horizontal', cm]    #[fraction, orientation, colormap]
+signstructure = False
+usetex=True
+fig = spinstuff.PlotSpins(quiver_options, cb_options, signstructure,usetex)
 plt.savefig(f'spins_{output_data_filename}.pdf')
+plt.savefig(f'{cm}.pdf')
 plt.show()
 plt.close()
 #
@@ -39,4 +45,4 @@ plt.close()
 # print(spinstuff.SpinsABC)
 
 ##--------Plot spin configuration
-spinstuff.ExtractMomentsAndPositions()
+# spinstuff.ExtractMomentsAndPositions()

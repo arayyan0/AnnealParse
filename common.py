@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as ptch
 from itertools import product
 
-def AddBZ(ax, scale: float):
+def AddBZ(ax, scale: float, usetex):
     '''
     Adds the first, second, and sqrt(3) x sqrt(3) Brillouin zones to the reciprocal
     lattice figure. Also fixes the x and y limits and axis labels manually
@@ -33,8 +33,14 @@ def AddBZ(ax, scale: float):
     else:
         denom = f'/{scale:.3f}'
 
-    ax.set_xlabel(r'$k_x$'+denom)
-    ax.set_ylabel(r'$k_y$'+denom)
+    ax.set_xlabel(r'$k_x$'+denom, usetex=usetex)
+    ax.set_ylabel(r'$k_y$'+denom, usetex=usetex)
+
+    ticks = np.linspace(-1,1,4+1)
+    ax.set_xticks(ticks)
+    ax.set_xticklabels([f'${val:.1f}$' for val in ticks],usetex=usetex)
+    ax.set_yticklabels([f'${val:.1f}$' for val in ticks],usetex=usetex)
+
     return ax
 
 def FindReciprocalVectors(A1, A2):
@@ -71,7 +77,7 @@ def RotateIn2D(theta: float):
 
 def LocalRotation(spin):
     '''
-    Returns rotation matrix U such that U @ spin = (0,0,1)
+    Returns rotation matrix U such that U(spin) @ spin = (0,0,1)
     For spin = (1, 1, 1)/sqrt(3), U is the xyz to abc* change of basis matrix
 
     Parameters
@@ -116,7 +122,7 @@ def IndexToPosition(A1, A2, sv, indices):
     z = n1 * A1 + n2 * A2 + sv[s] # just in case s is turned into a float
     return z
 
-def KMeshForPlotting(B1, B2, L1: int, L2: int, m1: int, m2: int, addbz: bool, addPoints: bool):
+def KMeshForPlotting(B1, B2, L1: int, L2: int, m1: int, m2: int, addbz: bool, addPoints: bool,usetex):
     '''
     Creates two dimensional Gamma-centered K-mesh. Note that meshgrids are
     'x,y' indexed, so the shape you would expect is flipped around (see np.meshgrid
@@ -146,14 +152,15 @@ def KMeshForPlotting(B1, B2, L1: int, L2: int, m1: int, m2: int, addbz: bool, ad
     fig, ax = plt.subplots()
     if addPoints: #whether to plot BZ or not
         ax.plot(KX/scale, KY/scale, '+', c='grey')
-    # PlotLineBetweenTwoPoints(ax, g/scale, B1/scale)
-    # PlotLineBetweenTwoPoints(ax, g/scale, B2/scale)
+    PlotLineBetweenTwoPoints(ax, g/scale, B1/scale)
+    PlotLineBetweenTwoPoints(ax, g/scale, B2/scale)
 
     ax.set_aspect('equal')
     # ax.axis("equal")
     # ax.set_facecolor('black')
     if addbz: #whether to plot BZ or not
-        AddBZ(ax, scale)
+        AddBZ(ax, scale,usetex)
+
     return KX, KY, fig
 
 def KMeshForIntegration(B1, B2, L1: int, L2: int):

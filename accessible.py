@@ -20,7 +20,7 @@ elif which == "re2":
 elif which == "c3":
     B1, B2 = FindReciprocalVectors(2*a1-a2, a1+a2)
 
-_, _, fig = KMeshForPlotting(B1, B2, l1, l2, 2, 2, True, True)
+_, _, fig = KMeshForPlotting(B1, B2, l1, l2, 2, 2, True, True, False)
 
 _, _, sym_labels, sym_points = SymmetryPoints().MakeKPath(["X","G","M2","Gp1","M1","G"],50)
 sym_points = np.array(sym_points)/2/pi
