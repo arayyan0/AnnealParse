@@ -152,13 +152,13 @@ def KMeshForPlotting(B1, B2, L1: int, L2: int, m1: int, m2: int, addbz: bool, ad
     scale = 2*pi
     fig, ax = plt.subplots()
     if addPoints: #whether to plot BZ or not
-        ax.plot(KX/scale, KY/scale, '+', c='grey')
-    PlotLineBetweenTwoPoints(ax, g/scale, B1/scale)
-    PlotLineBetweenTwoPoints(ax, g/scale, B2/scale)
+        ax.plot(KX/scale, KY/scale, '+', c='lightgrey',zorder=0)
+    # PlotLineBetweenTwoPoints(ax, g/scale, B1/scale)
+    # PlotLineBetweenTwoPoints(ax, g/scale, B2/scale)
 
     ax.set_aspect('equal')
     # ax.axis("equal")
-    # ax.set_facecolor('black')
+    # ax.set_facecolor('white')
     if addbz: #whether to plot BZ or not
         AddBZ(ax, scale,usetex)
 
