@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as ptch
 from itertools import product
 
+
 def AddBZ(ax, scale: float, usetex):
     '''
     Adds the first, second, and sqrt(3) x sqrt(3) Brillouin zones to the reciprocal

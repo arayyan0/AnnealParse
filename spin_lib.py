@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import matplotlib.patches as ptch
 import matplotlib.pylab as pl
-from functools import cached_property
+#from functools import cached_property
 
 from common import pi, sqrt3, gen_eps, a1, a2, AddBZ, FindReciprocalVectors, \
 LocalRotation, IndexToPosition, KMeshForPlotting, PlotLineBetweenTwoPoints
