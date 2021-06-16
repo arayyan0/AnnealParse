@@ -84,6 +84,8 @@ def WhichUnitCell(hc_or_kek: int, type: int, sublattice: int):
             ])
     return A1, A2, sub_list
 
+
+
 class AnnealedSpinConfiguration:
     '''
     Class associated with the raw output file of the C++ simulated annealing library.
@@ -484,3 +486,197 @@ class AnnealedSpinConfiguration:
 
         else:
             print("you must expand CalculateSignStructure to include this cluster shape")
+
+################################################################################
+################################################################################
+################################################################################
+
+def WhichTriangularUnitCell(type: int, sublattice: int):
+    '''
+    Selects the unit cell used in the Monte Carlo simulation.
+
+    Input
+    type               (int): orientation 1 (1) or 2 (2) of unit cell, refer to notes
+    sublattice         (int): rhombic (1) or rectangular (2) unit cell
+
+    Output
+    A1,A2    (numpy.ndarray): two primitive unit cell vectors of shape (2,)
+    sub_list (numpy.ndarray): location of each sublattice, shape (sublattice, 2)
+    '''
+    ## rhombus cluster 2
+    if sublattice == 1 and type == 2:
+        A1, A2 = a1-a2, a1
+        sub_list = np.array([
+            (A1+A2)/3,
+        ])
+
+    return A1, A2, sub_list
+
+class AnnealedSpinConfigurationTriangular:
+    '''
+    Class associated with the raw output file of the C++ simulated annealing library.
+    Contains all relevant information of the simulation, including cluster information,
+    simulation parameters, Hamiltonian parameters, resulting energy per site,
+    spin position indices, and spin components.
+    Class that further processes the raw data in ParseSAFile. Here we may calculate
+    the static strucutre factor and plot it over the 1st and 2nd Brillouin zones.
+    The spins are also rotated into the abc* direction so they may be plotted
+    over the honeycomb plane.
+
+    Note: does not include the Zeeman field magnitude h or the field direction
+          characterized by (h_theta, h_phi). Please restrict to parsing h = 0
+          simulations at this time.
+
+    Attributes
+    S, L1, L2                   (int): sublattice within unit cell, and number of
+                                       times it is translated in the A1/A2 directions
+    Sites                       (int): number of sites in the cluster
+    A1, A2            (numpy.ndarray): unit cell vectors of the cluster,
+                                       both of shape (2,)
+    SublatticeVectors (numpy.ndarray): position of sites within the unit cell
+                                       of shape (Sites, 2)
+    SimulationParameters       (list): numbers specifiying initial and final temp.
+                                       as well as the number of Metropolis and
+                                       determinstic flips
+    HamiltonianParameters      (list): parameters of the (anisotropic) Kitaev,
+                                       (anisotropic) Gamma, Gamma', and 1st NN
+                                       Heisenberg interactions
+    MCEnergyDensity    (numpy.double): final energy of the spin configuration
+    SpinsXYZ          (numpy.ndarray): the spin components in the global xyz basis,
+                                       of shape (l1*l2*s,3)
+    SpinLocations     (numpy.ndarray): spin locations, shape (Sites, 2)
+    SpinsABC          (numpy.ndarray): spins written in the abc* basis, shape (Sites, 3)
+    '''
+    def __init__(self, filename):
+        '''
+        Construct ParseSAFile instance.
+
+        Parameters
+        filename (string): filename of the simulated annealing raw data file.
+        '''
+        self.Filename = filename
+
+        with open(self.Filename, 'r') as f:
+            file_data = f.readlines()
+
+        self.Type = int(file_data[2])
+        self.S, self.L1, self.L2 = [int(x) for x in file_data[4].split()]
+        self.Sites = self.S*self.L1*self.L2
+        self.A1, self.A2, self.SublatticeVectors = \
+                                        WhichTriangularUnitCell(self.Type, self.S)
+
+        T_i = np.double(file_data[6])             #initial annealing temperature
+        T_f = np.double(file_data[8])               #final annealing temperature
+        met_sweeps = list(map(int, file_data[10].split()))              #number of metropolis trials
+        det_aligns = int(file_data[12])          #number of deterministic aligns
+        self.SimulationParameters = [T_i, T_f, met_sweeps, det_aligns]
+
+        Jtau = float(file_data[15].split()[0])
+        l = float(file_data[17].split()[0])
+        isingy = float(file_data[19].split()[0])
+        defect = float(file_data[21].split()[0])
+        hfield = float(file_data[23].split()[0])
+        hdirection = np.array(list(map(float,file_data[25].split())))
+
+        self.HamiltonianParameters = [Jtau, l, defect, hfield, hdirection]
+
+        self.SpecificHeat = np.double(file_data[28])
+        self.MCEnergyDensity = np.double(file_data[30])
+
+    def ExtractMomentsAndPositions(self):
+        '''
+        Extracts the moments and locations from the file. Separated from __init__
+        to save time if one just needs the energy of the spin configuration.
+
+        Parameters
+        filename (string): filename of the simulated annealing raw data file.
+        '''
+        with open(self.Filename, 'r') as f:
+            file_data = f.readlines()
+
+        sign = 1 #to flip sign of spins
+
+        self.SpinLocations = np.array(np.empty((self.Sites, 2)))
+        self.SpinsXYZ = np.empty((self.Sites, 3))
+        for i, line in enumerate(file_data[32:]):
+            n1, n2, sub, Sx, Sy, Sz = line.split()
+            # print(n1, n2, sub, Sx, Sy, Sz)
+            self.SpinsXYZ[i] = sign*np.array(
+            [np.longdouble(Sx),-np.longdouble(Sz),np.longdouble(Sy)]
+            )
+            self.SpinLocations[i] = IndexToPosition(self.A1, self.A2, self.SublatticeVectors,
+                                                      map(int,[n1,n2,sub]))
+            # print(self.SpinsXYZ[i])
+            # print(self.SpinLocations[i])
+
+    def PlotSpins(self, quiver_options, cb_options,usetex):
+        '''
+        Plots the spins (in the ABC basis) over the honeycomb plane, with color
+        indicating the angle made with the vector c* = (1,1,1)/sqrt(3) in
+        Cartesian basis
+
+        Returns
+        fig (numpy.ndarray): figure of the spin configuration over the , as well
+                             as the unit cell used to construct the cluster
+        '''
+        self.ExtractMomentsAndPositions()
+
+        sss, minlength, headwidth = quiver_options
+        fraction, orientation, cm, tickaxis = cb_options
+
+        sign = 1 #do not change here: change in ExtractMomentsAndPositions()
+
+        # print(self.SpinLocations)
+        # print(self.SpinsXYZ)
+
+        thetac = np.arccos(np.clip(sign*self.SpinsXYZ[:, 2], -1, 1)) / pi * 180
+        norm = clr.Normalize(vmin=0,vmax=180)
+
+        fig, ax = plt.subplots()
+
+        for x in range(0,self.L1+1):
+            for y in range(-1,self.L2):
+        #         #used for rhom unit cell
+                center1 = x * self.A1 + y * self.A2
+                hex2 = ptch.RegularPolygon(
+                center1+(a1+a2)/3, 3, 1 / sqrt3, 0, fill=False, linewidth=0.005,color='gray')
+                ax.add_patch(hex2)
+        #
+        #         hex3 = ptch.RegularPolygon(
+        #         center1, 6, 1 / sqrt3, 0, fill=False, linewidth=0.0005,color='gray')
+        #         ax.add_patch(hex3)
+
+        ax.quiver(self.SpinLocations[:,0], self.SpinLocations[:,1],
+                  sign*self.SpinsXYZ[:,0]     , sign*self.SpinsXYZ[:,1]     ,
+                  thetac, alpha=1,cmap=cm, norm=norm, pivot = 'mid',
+                  scale=sss,
+                  minlength=minlength,
+                  headwidth=headwidth,
+                  linewidth=0.1,
+                  ec='black')
+
+        ax.axis("off")
+        # ax.set_facecolor('black')
+        ax.axis("equal") #zooms in on arrows
+
+        sm = plt.cm.ScalarMappable(cmap=cm, norm=norm)
+        cb = plt.colorbar(sm,
+            fraction=fraction,
+            # pad=0,
+            orientation=orientation)
+        cb.ax.set_title(r'$\theta_{[111]}\quad \left(^\circ\right)$', usetex=usetex)
+
+        ticks = np.linspace(0,180,6+1)
+        cb.set_ticks(ticks)
+        if tickaxis=='x':
+            cb.ax.set_xticklabels([f'${val:.0f}$' for val in ticks],usetex=usetex)
+        elif tickaxis== 'y':
+            cb.ax.set_yticklabels([f'${val:.0f}$' for val in ticks],usetex=usetex)
+
+        #adding unit cell used for the calculation
+        g = np.zeros(2)
+        PlotLineBetweenTwoPoints(ax, g, self.A1)
+        PlotLineBetweenTwoPoints(ax, g, self.A2)
+        PlotLineBetweenTwoPoints(ax, self.A1, self.A1+self.A2)
+        PlotLineBetweenTwoPoints(ax, self.A2, self.A1+self.A2)
+        return fig

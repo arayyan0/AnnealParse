@@ -1,0 +1,17 @@
+# Compiled source
+*.o
+sim
+
+# Libraries
+Eigen/
+
+# Output Files
+out*/
+jobrun*.sh
+jobrun*.lst
+*.out
+*.pdf
+
+# Mac
+.DS_Store
+*pycache*
