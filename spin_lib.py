@@ -580,8 +580,14 @@ class AnnealedSpinConfigurationTriangular:
 
         self.HamiltonianParameters = [Jtau, l, defect, hfield, hdirection]
 
-        self.SpecificHeat = np.double(file_data[28])
-        self.MCEnergyDensity = np.double(file_data[30])
+        self.MCEnergyDensity = np.double(file_data[28])
+
+        self.FMOP = np.array(list(map(float,file_data[30+self.Sites+2].split())))
+        self.StripyOP = np.array(list(map(float,file_data[30+self.Sites+3].split())))
+
+        self.SpecificHeat = np.double(file_data[30+self.Sites+6])
+
+        self.FMNorm, self.PerpNorm, self.ParNorm = list(map(float,file_data[30+self.Sites+8].split()))
 
     def ExtractMomentsAndPositions(self):
         '''
@@ -598,7 +604,7 @@ class AnnealedSpinConfigurationTriangular:
 
         self.SpinLocations = np.array(np.empty((self.Sites, 2)))
         self.SpinsXYZ = np.empty((self.Sites, 3))
-        for i, line in enumerate(file_data[32:]):
+        for i, line in enumerate(file_data[30:30+self.Sites]):
             n1, n2, sub, Sx, Sy, Sz = line.split()
             # print(n1, n2, sub, Sx, Sy, Sz)
             self.SpinsXYZ[i] = sign*np.array(
@@ -606,8 +612,6 @@ class AnnealedSpinConfigurationTriangular:
             )
             self.SpinLocations[i] = IndexToPosition(self.A1, self.A2, self.SublatticeVectors,
                                                       map(int,[n1,n2,sub]))
-            # print(self.SpinsXYZ[i])
-            # print(self.SpinLocations[i])
 
     def PlotSpins(self, quiver_options, cb_options,usetex):
         '''
