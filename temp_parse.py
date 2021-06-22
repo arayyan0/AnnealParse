@@ -4,7 +4,7 @@ from spin_lib import AnnealedSpinConfigurationTriangular
 import os
 import glob as glob
 
-which = 'jtau_l=36'
+which = 'jtau_l=36_3'
 # which = 'jtau_d=-2_l=8'
 # which = 'jtau_d=-1.8_i=-0.2_l=8'
 
@@ -14,7 +14,7 @@ which = 'jtau_l=36'
 for number in range(1,1+1):
     run = f'{number}'
 
-    for version in range(1,1+1):
+    for version in range(1,3+1):
         data_folder = f'out/{which}/jobrun_{run}/v_{version}/'
         print(data_folder)
         plot_folder = data_folder + f'plots/'
@@ -62,7 +62,7 @@ for number in range(1,1+1):
         perpnormarray=perpnormarray[idx]
         parnormarray=parnormarray[idx]
 
-        print(parnormarray)
+        # print(parnormarray)
 
         # print(np.array([Tarray, SpecificHeatarray]).T)
 
@@ -74,13 +74,15 @@ for number in range(1,1+1):
         ax.plot(Tarray, SpecificHeatarray, '-o',color='green')
         ax_right.plot(Tarray, FMnormarray*scale, '-o',color='red',label=fr'$\langle |m| \rangle\times{scale}$')
         ax_right.plot(Tarray, perpnormarray, '-o',color='orange',label=fr'$\langle |m^\bot| \rangle$')
-        ax_right.plot(Tarray, parnormarray**scale, '-o',color='pink',label=fr'$\langle |m^\parallel| \rangle\times{scale}$')
+        ax_right.plot(Tarray, parnormarray*scale, '-o',color='pink',label=fr'$\langle |m^\parallel| \rangle\times{scale}$')
 
         ax_right.axhline(0,ls='--',color='gray')
         ax_right.axhline(1,ls='--',color='gray')
 
         ax_right.set_ylim(0,1)
         ax.set_xlim(0,np.max(Tarray))
+
+        # ax.set_ylim(0,2.5)
 
         ax.set_xlabel('Temperature')
         ax.set_ylabel(r'$C_v$',color='green')
