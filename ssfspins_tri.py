@@ -14,8 +14,6 @@ spinstuff = AnnealedSpinConfigurationTriangular(input_data_filename)
 
 ##--------Return MC energy
 print(spinstuff.MCEnergyDensity)
-print(spinstuff.SpecificHeat)
-print(spinstuff.FMNorm, spinstuff.PerpNorm, spinstuff.ParNorm)
 
 ##--------Plot spin configuration
 quiver_options = [0.4*35, 2.5, 3.5]       #[scale, minlength, headwidth]

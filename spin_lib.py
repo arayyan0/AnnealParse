@@ -567,9 +567,14 @@ class AnnealedSpinConfigurationTriangular:
 
         T_i = np.double(file_data[6])             #initial annealing temperature
         T_f = np.double(file_data[8])               #final annealing temperature
-        met_sweeps = list(map(int, file_data[10].split()))              #number of metropolis trials
+
+        SA_sweeps, therm_sweeps, measuring_sweeps, sampling_time = \
+         list(map(int, file_data[10].replace("/",' ').split()))
+
+        # met_sweeps = list(map(int, file_data[10].split()))              #number of metropolis trials
         det_aligns = int(file_data[12])          #number of deterministic aligns
-        self.SimulationParameters = [T_i, T_f, met_sweeps, det_aligns]
+        self.SimulationParameters = [T_i, T_f, SA_sweeps, therm_sweeps,
+                                     measuring_sweeps, sampling_time, det_aligns]
 
         Jtau = float(file_data[15].split()[0])
         l = float(file_data[17].split()[0])
@@ -585,9 +590,27 @@ class AnnealedSpinConfigurationTriangular:
         self.FMOP = np.array(list(map(float,file_data[30+self.Sites+2].split())))
         self.StripyOP = np.array(list(map(float,file_data[30+self.Sites+3].split())))
 
-        self.SpecificHeat = np.double(file_data[30+self.Sites+6])
+        self.E, self.E2, self.E3, self.E4 = list(map(np.longdouble, file_data[30+self.Sites+6].split()))
 
-        self.FMNorm, self.PerpNorm, self.ParNorm = list(map(float,file_data[30+self.Sites+8].split()))
+        self.FMNorm, self.FMNorm2, self.FMNorm4 = list(map(np.longdouble, file_data[30+self.Sites+8].split()))
+        self.PerpNorm, self.PerpNorm2, self.PerpNorm4 = list(map(np.longdouble, file_data[30+self.Sites+9].split()))
+        self.ParNorm, self.ParNorm2, self.ParNorm4 = list(map(np.longdouble, file_data[30+self.Sites+10].split()))
+
+        self.SpecificHeat = self.Sites/(T_f)**2 * (self.E2 - self.E**2)
+        self.SpecificHeatError = self.Sites/(T_f)**2/np.sqrt(measuring_sweeps/sampling_time) *\
+                                np.sqrt(
+                                        self.E4 - self.E2**2 + 4*self.E*(
+                                            2*self.E*self.E2 - self.E3 -self.E**3
+                                        )
+                                )
+        self.FMSusceptibility = self.Sites/(T_f)*(self.FMNorm2 - self.FMNorm**2)
+        self.PerpSusceptibility = self.Sites/(T_f)*(self.PerpNorm2 - self.PerpNorm**2)
+        self.ParSusceptibility = self.Sites/(T_f)*(self.ParNorm2 - self.ParNorm**2)
+
+        self.FMBinder  = 1- (self.FMNorm4/(self.FMNorm2**2))/3
+        self.PerpBinder= 1- (self.PerpNorm4/(self.PerpNorm2**2))/3
+        self.ParBinder = 1- (self.ParNorm4/(self.ParNorm2**2))/3
+
 
     def ExtractMomentsAndPositions(self):
         '''
