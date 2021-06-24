@@ -577,39 +577,41 @@ class AnnealedSpinConfigurationTriangular:
                                      measuring_sweeps, sampling_time, det_aligns]
 
         Jtau = float(file_data[15].split()[0])
-        l = float(file_data[17].split()[0])
+        lambd = float(file_data[17].split()[0])
         isingy = float(file_data[19].split()[0])
-        defect = float(file_data[21].split()[0])
+        defect, num_defects = list(map(np.double, file_data[21].replace('/',' ').split()))
         hfield = float(file_data[23].split()[0])
         hdirection = np.array(list(map(float,file_data[25].split())))
 
-        self.HamiltonianParameters = [Jtau, l, defect, hfield, hdirection]
+        self.HamiltonianParameters = [Jtau, lambd, defect, num_defects, hfield, hdirection]
 
         self.MCEnergyDensity = np.double(file_data[28])
 
         self.FMOP = np.array(list(map(float,file_data[30+self.Sites+2].split())))
         self.StripyOP = np.array(list(map(float,file_data[30+self.Sites+3].split())))
 
-        self.E, self.E2, self.E3, self.E4 = list(map(np.longdouble, file_data[30+self.Sites+6].split()))
+        if int(det_aligns) == 0:
+            self.E, self.E2, self.E3, self.E4 = list(map(np.longdouble, file_data[30+self.Sites+6].split()))
 
-        self.FMNorm, self.FMNorm2, self.FMNorm4 = list(map(np.longdouble, file_data[30+self.Sites+8].split()))
-        self.PerpNorm, self.PerpNorm2, self.PerpNorm4 = list(map(np.longdouble, file_data[30+self.Sites+9].split()))
-        self.ParNorm, self.ParNorm2, self.ParNorm4 = list(map(np.longdouble, file_data[30+self.Sites+10].split()))
 
-        self.SpecificHeat = self.Sites/(T_f)**2 * (self.E2 - self.E**2)
-        self.SpecificHeatError = self.Sites/(T_f)**2/np.sqrt(measuring_sweeps/sampling_time) *\
-                                np.sqrt(
-                                        self.E4 - self.E2**2 + 4*self.E*(
-                                            2*self.E*self.E2 - self.E3 -self.E**3
-                                        )
-                                )
-        self.FMSusceptibility = self.Sites/(T_f)*(self.FMNorm2 - self.FMNorm**2)
-        self.PerpSusceptibility = self.Sites/(T_f)*(self.PerpNorm2 - self.PerpNorm**2)
-        self.ParSusceptibility = self.Sites/(T_f)*(self.ParNorm2 - self.ParNorm**2)
+            self.FMNorm, self.FMNorm2, self.FMNorm4 = list(map(np.longdouble, file_data[30+self.Sites+8].split()))
+            self.PerpNorm, self.PerpNorm2, self.PerpNorm4 = list(map(np.longdouble, file_data[30+self.Sites+9].split()))
+            self.ParNorm, self.ParNorm2, self.ParNorm4 = list(map(np.longdouble, file_data[30+self.Sites+10].split()))
 
-        self.FMBinder  = 1- (self.FMNorm4/(self.FMNorm2**2))/3
-        self.PerpBinder= 1- (self.PerpNorm4/(self.PerpNorm2**2))/3
-        self.ParBinder = 1- (self.ParNorm4/(self.ParNorm2**2))/3
+            self.SpecificHeat = self.Sites/(T_f)**2 * (self.E2 - self.E**2)
+            self.SpecificHeatError = self.Sites/(T_f)**2/np.sqrt(measuring_sweeps/sampling_time) *\
+                                    np.sqrt(
+                                            self.E4 - self.E2**2 + 4*self.E*(
+                                                2*self.E*self.E2 - self.E3 -self.E**3
+                                            )
+                                    )
+            self.FMSusceptibility = self.Sites/(T_f)*(self.FMNorm2 - self.FMNorm**2)
+            self.PerpSusceptibility = self.Sites/(T_f)*(self.PerpNorm2 - self.PerpNorm**2)
+            self.ParSusceptibility = self.Sites/(T_f)*(self.ParNorm2 - self.ParNorm**2)
+
+            self.FMBinder  = 1- (self.FMNorm4/(self.FMNorm2**2))/3
+            self.PerpBinder= 1- (self.PerpNorm4/(self.PerpNorm2**2))/3
+            self.ParBinder = 1- (self.ParNorm4/(self.ParNorm2**2))/3
 
 
     def ExtractMomentsAndPositions(self):
