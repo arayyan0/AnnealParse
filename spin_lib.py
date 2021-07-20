@@ -1,4 +1,8 @@
 import numpy as np
+
+import matplotlib as mpl
+mpl.use('tkagg')
+
 import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import matplotlib.patches as ptch
@@ -7,6 +11,8 @@ from functools import cached_property
 
 from common import pi, sqrt3, gen_eps, a1, a2, AddBZ, FindReciprocalVectors, \
 LocalRotation, IndexToPosition, KMeshForPlotting, PlotLineBetweenTwoPoints
+
+
 
 def WhichUnitCell(hc_or_kek: int, type: int, sublattice: int):
     '''
@@ -579,7 +585,7 @@ class AnnealedSpinConfigurationTriangular:
         Jtau = float(file_data[15].split()[0])
         lambd = float(file_data[17].split()[0])
         isingy = float(file_data[19].split()[0])
-        defect, num_defects = list(map(np.double, file_data[21].replace('/',' ').split()))
+        defect, lengthscale, num_defects = list(map(np.double, file_data[21].replace('/',' ').split()))
         hfield = float(file_data[23].split()[0])
         hdirection = np.array(list(map(float,file_data[25].split())))
 
