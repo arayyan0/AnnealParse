@@ -4,10 +4,11 @@ from spin_lib import AnnealedSpinConfigurationTriangular
 import os
 import glob as glob
 
-L=36
-which = f'jtau_ising_defect_l={L}'
-
-for number in range(7,7+1):
+# L=36
+which = f'extendefect'
+plot_individual=True
+scale = 1
+for number in range(3,4+1):
     run = f'{number}'
 
     for version in range(1,1+1):
@@ -40,9 +41,9 @@ for number in range(7,7+1):
 
             binderlist.append([spinstuff.FMBinder, spinstuff.PerpBinder, spinstuff.ParBinder,spinstuff.CombinedBinder])
 
-            if (number == 7):
+            if plot_individual == True:
                 # quiver_options = [0.6*35, 1.5, 3.5]       #[scale, minlength, headwidth]
-                quiver_options = [1.4*35, 1.5, 3.5]       #[scale, minlength, headwidth]
+                quiver_options = [1.6*35, 1.5, 3.5]       #[scale, minlength, headwidth]
                 cm = 'gnuplot'
                 cb_options = [0.04, 'horizontal', cm,'x']    #[fraction, orientation, colormap]
                 usetex=False
@@ -68,12 +69,11 @@ for number in range(7,7+1):
         fig,(ax1,ax2,ax3) = plt.subplots(3,1,sharex=True)
 
         colors = ['blue', 'orange', 'green','purple']
-        scale = 4
         OPscale = scale
         # ax1.plot(Tarray,OParray[:,0]*OPscale, '-o',label=fr'$\langle |m| \rangle\times{OPscale}$',color=colors[0])
         ax1.plot(Tarray,OParray[:,1], '-o', label=fr'$\langle |m^\bot| \rangle$',color=colors[1])
         ax1.plot(Tarray,OParray[:,2]*OPscale,'-o', label=fr'$\langle |m^\parallel| \rangle\times{OPscale}$',color=colors[2])
-        ax1.plot(Tarray,OParray[:,3],'-o', label=fr'$\langle |M| \rangle\times{OPscale}$',color=colors[3])
+        ax1.plot(Tarray,OParray[:,3],'-o', label=fr'$\langle |M| \rangle$',color=colors[3])
 
         ax1.axhline(0,ls='--',color='gray')
         ax1.axhline(1,ls='--',color='gray')
@@ -81,11 +81,10 @@ for number in range(7,7+1):
         ax1.legend()
 
         flucscale = scale
-        # ax3.plot(Tarray,flucarray[:,0], '-o',label=fr'$c_V$',color='green')
         # ax3.plot(Tarray,flucarray[:,2]*flucscale, '-o', label=rf'$\chi\times{flucscale}$',color=colors[0])
         ax3.plot(Tarray,flucarray[:,3], '-o', label=rf'$\chi^\bot$',color=colors[1])
         ax3.plot(Tarray,flucarray[:,4]*flucscale, '-o', label=rf'$\chi^\parallel\times{flucscale}$',color=colors[2])
-        ax3.plot(Tarray,flucarray[:,5], '-o', label=rf'$X\times{flucscale}$',color=colors[3])
+        ax3.plot(Tarray,flucarray[:,5], '-o', label=rf'$X$',color=colors[3])
         ax3.axhline(0,ls='--',color='gray')
         ax3.legend()
 
