@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib
+matplotlib.use('tkagg')
 import matplotlib.pyplot as plt
 from spin_lib import AnnealedSpinConfigurationTriangular
 import sys
@@ -15,12 +17,18 @@ spinstuff = AnnealedSpinConfigurationTriangular(input_data_filename)
 ##--------Return MC energy
 print(spinstuff.MCEnergyDensity)
 
+
 ##--------Plot spin configuration
-quiver_options = [0.4*35, 2.5, 3.5]       #[scale, minlength, headwidth]
+
+if spinstuff.Sites > 500:
+    quiver_options = [1.9*35, 2.5, 3.5]       #[scale, minlength, headwidth]
+else:
+    quiver_options = [0.5*35, 2.5, 3.5]       #[scale, minlength, headwidth]
 
 cm = 'gnuplot'
 cb_options = [0.04, 'horizontal', cm,'x']    #[fraction, orientation, colormap]
 usetex=False
 fig = spinstuff.PlotSpins(quiver_options, cb_options, usetex)
 plt.savefig(f'spins_{output_data_filename}.pdf')
+plt.show()
 plt.close()
