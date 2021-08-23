@@ -15,6 +15,8 @@ print(f'{lswtea.MCEnergyDensity:.14f}')
 print(f'{lswtea.Ex:.14f}, {lswtea.Ey:.14f},{lswtea.Ez:.14f}')
 print(f'{(lswtea.Ex+lswtea.Ey)/2-(lswtea.Ez):.14f}')
 
+print(lswtea.EquilibriumCheck)
+
 
 # k = [np.array([-0.1,-0.4]),np.array([0.1, 0.4])]
 

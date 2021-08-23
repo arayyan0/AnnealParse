@@ -21,11 +21,11 @@ print(spinstuff.MCEnergyDensity)
 ##--------Plot spin configuration
 
 if spinstuff.Sites > 500:
-    quiver_options = [1.9*35, 2.5, 3.5]       #[scale, minlength, headwidth]
+    quiver_options = [1.9*35, 2.5, 2]       #[scale, minlength, headwidth]
 else:
-    quiver_options = [0.5*35, 2.5, 3.5]       #[scale, minlength, headwidth]
+    quiver_options = [0.5*35, 2.5, 2]       #[scale, minlength, headwidth]
 
-cm = 'gnuplot'
+cm = 'seismic'
 cb_options = [0.04, 'horizontal', cm,'x']    #[fraction, orientation, colormap]
 usetex=False
 fig = spinstuff.PlotSpins(quiver_options, cb_options, usetex)

@@ -5,10 +5,10 @@ import os
 import glob as glob
 
 # L=36
-which = f'extendefect'
-plot_individual=True
-scale = 1
-for number in range(3,4+1):
+which = f'extendeddefect'
+plot_individual=False
+scale = 3.5
+for number in range(1,3+1):
     run = f'{number}'
 
     for version in range(1,1+1):
