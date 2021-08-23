@@ -33,47 +33,63 @@ def WhichUnitCell(hc_or_kek: int, type: int, sublattice: int):
         if sublattice == 2 and type == 1:
             A1, A2 = a1, a2
             sub_list = np.array([
-                (A1 + A2) / 3,
-                2 * (A1 + A2) / 3
+                (1.0*A1 + 1.0*A2)/3.0,
+                (2.0*A1 + 2.0*A2)/3.0
             ])
 
         ## rhombus cluster 2, oriented along x bond
         elif sublattice == 2 and type == 2:
             A1, A2 = a1 - a2, a1
             sub_list = np.array([
-                (A1 + A2) / 3,
-                2 * (A1 + A2) / 3
+                (1.0*A1 + 1.0*A2)/3.0,
+                (2.0*A1 + 2.0*A2)/3.0
+            ])
+
+        elif sublattice == 2 and type == 3:
+            A1, A2 = a2, a2-a1
+            sub_list = np.array([
+                (1.0*A1 + 1.0*A2)/3.0,
+                (2.0*A1 + 2.0*A2)/3.0
             ])
 
         # rectangular cluster 1, oriented along y bond
         elif sublattice == 4 and type == 1:
             A1, A2 = a1, a1 + 2 * (a2 - a1)
             sub_list = np.array([
-                (a1 + a2) / 3,
-                2 * (a1 + a2) / 3,
-                (a1 + a2) / 3 + a2,
-                2 * (a1 + a2) / 3 + a2 - a1,
+                (3.0*A1 + 1.0*A2)/6.0,
+                (6.0*A1 + 2.0*A2)/6.0,
+                (6.0*A1 + 4.0*A2)/6.0,
+                (3.0*A1 + 5.0*A2)/6.0,
             ])
 
         # rectangular cluster 2, oriented along z bond
         elif sublattice == 4 and type == 2:
             A1, A2 = a1 - a2, a1 + a2
             sub_list = np.array([
-                (a1 + a2) / 3 + (a1 + a2) / 3 - a2,
-                2 * (a1 + a2) / 3 + 2 * ((a1 + a2) / 3 - a2),
-                (a1 + a2) / 3 + (a1 + a2) / 3 - a2 + a1,
-                2 * (a1 + a2) / 3 + 2 * ((a1 + a2) / 3 - a2) + a2,
+                (3.0*A1 + 1.0*A2)/6.0,
+                (6.0*A1 + 2.0*A2)/6.0,
+                (6.0*A1 + 4.0*A2)/6.0,
+                (3.0*A1 + 5.0*A2)/6.0,
+            ])
+
+        elif sublattice == 4 and type == 3:
+            A1, A2 = a2, a2-2*a1
+            sub_list = np.array([
+                (3.0*A1 + 1.0*A2)/6.0,
+                (6.0*A1 + 2.0*A2)/6.0,
+                (6.0*A1 + 4.0*A2)/6.0,
+                (3.0*A1 + 5.0*A2)/6.0,
             ])
 
         elif sublattice == 6:
             A1, A2 = 2*a1 - a2, 2*a2 - a1
             sub_list = np.array([
-                A2+a1-a2,
-                (A1+A2)/3,
-                A2+a1-a2+a1-a2,
-                (A1+A2)/3+a2,
-                (A1+A2),
-                (A1+A2)/3+a1,
+                (1.0*A1+1.0*A2)/6.0,
+                (3.0*A1+1.0*A2)/6.0,
+                (5.0*A1+3.0*A2)/6.0,
+                (5.0*A1+5.0*A2)/6.0,
+                (3.0*A1+5.0*A2)/6.0,
+                (1.0*A1+3.0*A2)/6.0,
             ])
 
     # Kekule cluster
@@ -81,12 +97,12 @@ def WhichUnitCell(hc_or_kek: int, type: int, sublattice: int):
         if sublattice == 6:
             A1, A2 = 2 * a1 - a2, 2 * a2 - a1
             sub_list = np.array([
-                (A1 + A2) / 2 + A1 / 3,
-                (A1 + A2) / 2 - A2 / 3,
-                (A1 + A2) / 2 + (A1 + A2) / 3,
-                (A1 + A2) / 2 - A1 / 3,
-                (A1 + A2) / 2 + A2 / 3,
-                (A1 + A2) / 2 - (A1 + A2) / 3
+                (1.0*A1+1.0*A2)/6.0,
+                (3.0*A1+1.0*A2)/6.0,
+                (5.0*A1+3.0*A2)/6.0,
+                (5.0*A1+5.0*A2)/6.0,
+                (3.0*A1+5.0*A2)/6.0,
+                (1.0*A1+3.0*A2)/6.0,
             ])
     return A1, A2, sub_list
 
@@ -147,9 +163,11 @@ class AnnealedSpinConfiguration:
 
         T_i = np.double(file_data[6])             #initial annealing temperature
         T_f = np.double(file_data[8])               #final annealing temperature
-        met_flips = int(file_data[10])              #number of metropolis trials
+        SA_sweeps, therm_sweeps, measuring_sweeps, sampling_time = \
+         list(map(int, file_data[10].replace("/",' ').split()))
         det_aligns = int(file_data[12])          #number of deterministic aligns
-        self.SimulationParameters = [T_i, T_f, met_flips, det_aligns]
+        self.SimulationParameters = [T_i, T_f, SA_sweeps, therm_sweeps,
+                                     measuring_sweeps, sampling_time, det_aligns]
 
         Kx, Ky, Kz = [float(x) for x in file_data[15].split()]
         Gx, Gy, Gz = [float(x) for x in file_data[17].split()]
@@ -157,7 +175,7 @@ class AnnealedSpinConfiguration:
         J1 = float(file_data[21].split()[0])
         self.HamiltonianParameters = [np.array([Kx, Ky, Kz]), np.array([Gx, Gy, Gz]), Gp, J1]
 
-        self.MCEnergyDensity = np.double(file_data[30])
+        self.MCEnergyDensity = np.double(file_data[28])
 
     def ExtractMomentsAndPositions(self):
         '''
@@ -173,7 +191,7 @@ class AnnealedSpinConfiguration:
         sign = 1 #to flip sign of spins
         self.SpinLocations = np.array(np.empty((self.Sites, 2)))
         self.SpinsXYZ = np.empty((self.Sites, 3))
-        for i, line in enumerate(file_data[32:]):
+        for i, line in enumerate(file_data[30:]):
             n1, n2, sub, Sx, Sy, Sz = line.split()
             self.SpinsXYZ[i] = sign*np.array(list(map(np.longdouble,[Sx,Sy,Sz])))
             self.SpinLocations[i] = IndexToPosition(self.A1, self.A2, self.SublatticeVectors,
@@ -561,6 +579,7 @@ class AnnealedSpinConfigurationTriangular:
         filename (string): filename of the simulated annealing raw data file.
         '''
         self.Filename = filename
+        print(filename)
 
         with open(self.Filename, 'r') as f:
             file_data = f.readlines()
@@ -582,14 +601,14 @@ class AnnealedSpinConfigurationTriangular:
         self.SimulationParameters = [T_i, T_f, SA_sweeps, therm_sweeps,
                                      measuring_sweeps, sampling_time, det_aligns]
 
-        Jtau = float(file_data[15].split()[0])
-        lambd = float(file_data[17].split()[0])
-        isingy = float(file_data[19].split()[0])
-        defect, lengthscale, num_defects = list(map(np.double, file_data[21].replace('/',' ').split()))
-        hfield = float(file_data[23].split()[0])
-        hdirection = np.array(list(map(float,file_data[25].split())))
+        # Jtau = float(file_data[15].split()[0])
+        # lambd = float(file_data[17].split()[0])
+        # jquad, jocto = list(map(np.double,file_data[19].replace('/',' ').split()))
+        # defect, lengthscale, num_defects = list(map(np.double, file_data[21].replace('/',' ').split()))
+        # hfield = float(file_data[23].split()[0])
+        # hdirection = np.array(list(map(float,file_data[25].split())))
 
-        self.HamiltonianParameters = [Jtau, lambd, defect, num_defects, hfield, hdirection]
+        # self.HamiltonianParameters = [Jtau, lambd, defect, num_defects, hfield, hdirection]
 
         self.MCEnergyDensity = np.double(file_data[28])
 
@@ -598,7 +617,7 @@ class AnnealedSpinConfigurationTriangular:
         self.CombinedOP = np.array(list(map(float,file_data[30+self.Sites+3].split())))
 
 
-        if int(det_aligns) == 0:
+        if int(measuring_sweeps) != 0:
             self.E, self.E2, self.E3, self.E4 = list(map(np.longdouble, file_data[30+self.Sites+7].split()))
 
 
@@ -693,11 +712,25 @@ class AnnealedSpinConfigurationTriangular:
         ax.quiver(self.SpinLocations[:,0], self.SpinLocations[:,1],
                   sign*self.SpinsXYZ[:,0]     , sign*self.SpinsXYZ[:,1]     ,
                   thetac, alpha=1,cmap=cm, norm=norm, pivot = 'mid',
-                  scale=sss,
-                  minlength=minlength,
-                  headwidth=headwidth,
+                  scale=70,
+                  headlength = 2,
+                  headaxislength = 2,
+                  headwidth = 3,
+                  # minlength=minlength,
+                  # headaxislength=0.1
+                  # headlength=0.1
+                  # minshaft=0.7,
                   linewidth=0.1,
                   ec='black')
+
+        # ax.quiver(self.SpinLocations[:,0], self.SpinLocations[:,1],
+        #           sign*self.SpinsXYZ[:,0]     , sign*self.SpinsXYZ[:,1]     ,
+        #           thetac, alpha=1,cmap=cm, norm=norm, pivot = 'mid',
+        #           scale=sss,
+        #           minlength=minlength,
+        #           headwidth=headwidth,
+        #           linewidth=0.1,
+        #           ec='black')
 
         ax.axis("off")
         # ax.set_facecolor('black')
