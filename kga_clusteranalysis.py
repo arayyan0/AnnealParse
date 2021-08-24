@@ -1,37 +1,31 @@
 import glob as glob
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 from spin_lib import AnnealedSpinConfiguration
-import matplotlib.pyplot as plt
+import sys
 
-# clusters = [
-#     [2,2,1,2],
-#     [2,2,2,1],
-#     [2,2,1,3],
-#     [2,2,3,1],
-#     [2,2,1,8],
-#     [2,2,8,1]
-# ]
 colors = ['red', 'salmon', 'dodgerblue', 'cyan', 'purple', 'fuchsia']
 
 clusters = [
     [2,2,2,1],
     [2,2,3,1],
     [2,2,1,3],
-    [2,4,1,4],
     [2,2,8,1],
+    [2,4,1,4],
     [2,4,3,2],
 ]
 colors = ['salmon', 'dodgerblue', 'cyan', 'green', 'lime', 'fuchsia']
+labels = ['ZZy', '6y', '6z', '16y', '16z', '24z']
 
 fig, ax = plt.subplots()
 
 data_folder = 'out/16-siteregion-2/'
 scan_which = 'p'
-y_fixed = 0.00
+y_fixed = float(sys.argv[1])
 
 clusterEnergies = []
-for [type, s, l1, l2], color in zip(clusters, colors):
+for [type, s, l1, l2], color, label in zip(clusters, colors, labels):
     cluster_folder = data_folder+ f'{s}_{l1}_{l2}/'
     print(cluster_folder)
 
@@ -40,12 +34,13 @@ for [type, s, l1, l2], color in zip(clusters, colors):
         if not os.path.exists(plot_folder):
             os.makedirs(plot_folder)
         file_list = glob.glob(cluster_folder+f'p_*_a_{y_fixed:.3f}_.out')
+        # print(cluster_folder+f'p_{y_fixed:.3f}_a_*_.out')
     elif scan_which == 'a':
         plot_folder = cluster_folder+'plots/'+f'p_{y_fixed}/'
         if not os.path.exists(plot_folder):
             os.makedirs(plot_folder)
         file_list = glob.glob(cluster_folder+f'p_{y_fixed:.3f}_a_*_.out')
-
+        # print(cluster_folder+f'p_{y_fixed:.3f}_a_*_.out')
     xlist = []
     Elist = []
     # print(file_list)
@@ -75,8 +70,10 @@ for [type, s, l1, l2], color in zip(clusters, colors):
 
     clusterEnergies.append(Earray)
 
-    ax.scatter(xarray, Earray, c=color)
+    ax.plot(xarray, Earray, '-o', c=color, label=label)
+    # ax.scatter(xarray, Earray, c=color, label=label)
 
+plt.legend()
 plt.show()
 plt.close()
 
