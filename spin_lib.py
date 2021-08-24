@@ -255,8 +255,8 @@ class AnnealedSpinConfiguration:
 
         ticks = np.linspace(0,1,4+1)
         cbar.set_ticks(ticks)
-        # cbar.ax.set_yticklabels([f'${val:.2f}$' for val in ticks],usetex=usetex,fontsize=9)
-        cbar.ax.set_xticklabels([f'${val:.2f}$' for val in ticks],usetex=usetex,fontsize=9)
+        cbar.ax.set_yticklabels([f'${val:.2f}$' for val in ticks],usetex=usetex,fontsize=9)
+        # cbar.ax.set_xticklabels([f'${val:.2f}$' for val in ticks],usetex=usetex,fontsize=9)
 
         return fig
 
