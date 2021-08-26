@@ -32,3 +32,10 @@ fig = spinstuff.PlotSpins(quiver_options, cb_options, usetex)
 plt.savefig(f'spins_{output_data_filename}.pdf')
 plt.show()
 plt.close()
+
+##----------Plot Dipolar FIeld
+
+fig = spinstuff.PlotDipolarField()
+plt.savefig(f'dipolar_{output_data_filename}.pdf')
+plt.show()
+plt.close()

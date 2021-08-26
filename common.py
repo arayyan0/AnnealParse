@@ -270,6 +270,7 @@ def Path(A, B, n: int):
     z = np.stack((x, y)).T
     return z
 
+
 class SymmetryPoints:
     '''
     A class containing the symmetry points of the reciprocal space of

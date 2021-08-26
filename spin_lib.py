@@ -7,10 +7,12 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as clr
 import matplotlib.patches as ptch
 import matplotlib.pylab as pl
+from matplotlib.colors import TwoSlopeNorm
 #from functools import cached_property
 
 from common import pi, sqrt3, gen_eps, a1, a2, AddBZ, FindReciprocalVectors, \
-LocalRotation, IndexToPosition, KMeshForPlotting, PlotLineBetweenTwoPoints
+LocalRotation, IndexToPosition, KMeshForPlotting, PlotLineBetweenTwoPoints,\
+KMeshForIntegration
 
 
 
@@ -601,12 +603,12 @@ class AnnealedSpinConfigurationTriangular:
         self.SimulationParameters = [T_i, T_f, SA_sweeps, therm_sweeps,
                                      measuring_sweeps, sampling_time, det_aligns]
 
-        # Jtau = float(file_data[15].split()[0])
-        # lambd = float(file_data[17].split()[0])
-        # jquad, jocto = list(map(np.double,file_data[19].replace('/',' ').split()))
-        # defect, lengthscale, num_defects = list(map(np.double, file_data[21].replace('/',' ').split()))
-        # hfield = float(file_data[23].split()[0])
-        # hdirection = np.array(list(map(float,file_data[25].split())))
+        Jtau = float(file_data[15].split()[0])
+        lambd = float(file_data[17].split()[0])
+        self.JQuad, self.JOcto = list(map(np.double,file_data[19].replace('/',' ').split()))
+        hfield = float(file_data[21].split()[0])
+        # hdirection = np.array(list(map(float,file_data[22].split())))
+        self.DefectQuad, self.DefectOcto, self.Lengthscale, self.NumDefects = list(map(np.double, file_data[25].replace('/',' ').split()))
 
         # self.HamiltonianParameters = [Jtau, lambd, defect, num_defects, hfield, hdirection]
 
@@ -712,16 +714,18 @@ class AnnealedSpinConfigurationTriangular:
         ax.quiver(self.SpinLocations[:,0], self.SpinLocations[:,1],
                   sign*self.SpinsXYZ[:,0]     , sign*self.SpinsXYZ[:,1]     ,
                   thetac, alpha=1,cmap=cm, norm=norm, pivot = 'mid',
-                  scale=70,
-                  headlength = 2,
-                  headaxislength = 2,
-                  headwidth = 3,
-                  # minlength=minlength,
+                  scale=25,
+                  # headlength = 2,
+                  # headaxislength = 2,
+                  # headwidth = 3,
+                  minlength=minlength,
                   # headaxislength=0.1
-                  # headlength=0.1
                   # minshaft=0.7,
-                  linewidth=0.1,
+                  linewidth=0.2,
                   ec='black')
+
+        plt.title(f'$J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f},\
+                    $a^Q$ = {self.DefectQuad:.2f}, $a^O$ = {self.DefectOcto:.2f} ')
 
         # ax.quiver(self.SpinLocations[:,0], self.SpinLocations[:,1],
         #           sign*self.SpinsXYZ[:,0]     , sign*self.SpinsXYZ[:,1]     ,
@@ -757,3 +761,32 @@ class AnnealedSpinConfigurationTriangular:
         PlotLineBetweenTwoPoints(ax, self.A1, self.A1+self.A2)
         PlotLineBetweenTwoPoints(ax, self.A2, self.A1+self.A2)
         return fig
+
+    def PlotDipolarField(self):
+        self.ExtractMomentsAndPositions()
+
+        Bfield = np.empty(self.SpinLocations.shape[0], dtype=float)
+        for i, ri in enumerate(self.SpinLocations):
+            z = 0
+            for Sj, rj in zip(self.SpinsXYZ[:,2], self.SpinLocations):
+                R = np.linalg.norm(ri - rj)
+                if R > 10e-6:
+                    z += self.DipolarField(R, Sj)
+                else:
+                    z += Sj
+            Bfield[i] = z
+
+        oneD1, oneD2 = (np.arange(0, l) for l in [self.L1, self.L2])
+        n1, n2 = np.meshgrid(oneD1, oneD2)  # grid points indexing G1/G2 direction
+        X, Y = (n1 * self.A1[i] + n2 * self.A2[i] + self.SublatticeVectors[0][i] for i in [0,1])  # bends meshgrid into shape of BZ
+        divnorm=TwoSlopeNorm(vmin=Bfield.min(), vcenter=0, vmax=Bfield.max())
+        Bfield.resize(self.L1, self.L2)
+        fig, ax = plt.subplots()
+        c = ax.pcolormesh(X, Y, Bfield, cmap = 'seismic', shading = 'auto',edgecolors='k', norm=divnorm)
+        fig.colorbar(c, ax=ax)
+        ax.axis("off")
+        ax.axis("equal") #zooms in on arrows
+        return fig
+
+    def DipolarField(self, R, Sj):
+        return -Sj / R**3
