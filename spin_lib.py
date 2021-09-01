@@ -610,6 +610,7 @@ class AnnealedSpinConfigurationTriangular:
         # hdirection = np.array(list(map(float,file_data[22].split())))
         self.DefectQuad, self.DefectOcto, self.Lengthscale, self.NumDefects = list(map(np.double, file_data[25].replace('/',' ').split()))
 
+
         # self.HamiltonianParameters = [Jtau, lambd, defect, num_defects, hfield, hdirection]
 
         self.MCEnergyDensity = np.double(file_data[28])
@@ -724,8 +725,12 @@ class AnnealedSpinConfigurationTriangular:
                   linewidth=0.2,
                   ec='black')
 
-        plt.title(f'$J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f},\
-                    $a^Q$ = {self.DefectQuad:.2f}, $a^O$ = {self.DefectOcto:.2f} ')
+        if (self.NumDefects == 1) and ((self.DefectQuad!=0) or (self.DefectOcto!=0)):
+            defe = ptch.Circle(3*self.L1/6 *self.A1 + 3*self.L2/6 *self.A2 +(self.A1+self.A2)/3,
+                        radius=self.Lengthscale*2, fill=True, alpha=0.1, linewidth=1.5,color='black')
+            ax.add_patch(defe)
+
+        plt.title(f'$J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f}, $a^Q$ = {self.DefectQuad:.2f}, $a^O$ = {self.DefectOcto:.2f}, $L$ = {self.Lengthscale:.2f}  ')
 
         # ax.quiver(self.SpinLocations[:,0], self.SpinLocations[:,1],
         #           sign*self.SpinsXYZ[:,0]     , sign*self.SpinsXYZ[:,1]     ,
@@ -786,6 +791,7 @@ class AnnealedSpinConfigurationTriangular:
         fig.colorbar(c, ax=ax)
         ax.axis("off")
         ax.axis("equal") #zooms in on arrows
+        plt.title(f'$J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f}, $a^Q$ = {self.DefectQuad:.2f}, $a^O$ = {self.DefectOcto:.2f}, $L$ = {self.Lengthscale:.2f}  ')
         return fig
 
     def DipolarField(self, R, Sj):
