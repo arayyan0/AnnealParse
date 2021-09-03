@@ -45,11 +45,11 @@ _, _, fig = KMeshForPlotting(B1, B2, l1, l2, 2, 2, addbz, addpoints, usetex)
 _, _, sym_labels, sym_points = SymmetryPoints().MakeKPath(["G","M3","M2","M1","G"],50)
 sym_points = np.array(sym_points)/2/pi
 ax = fig.axes[0]
-ax.scatter(sym_points[:,0], sym_points[:,1],c='k',zorder=10)
-ax.annotate('$\\Gamma$', (sym_points[0,0]+0.5/12, sym_points[0,1]),c='k',fontsize=12,usetex=usetex,zorder=10)
-ax.annotate(r'$M_y$', (sym_points[1,0]-2.2*0.5/6, sym_points[1,1]),c='k',fontsize=12,usetex=usetex,zorder=10)
-ax.annotate(r'$M_z$', (sym_points[2,0]-0.4/6, sym_points[2,1]+0.5/6),c='k',fontsize=12,usetex=usetex,zorder=10)
-ax.annotate(r'$M_x$', (sym_points[3,0]+0.5/12, sym_points[3,1]),c='k',fontsize=12,usetex=usetex,zorder=10)
+# ax.scatter(sym_points[:,0], sym_points[:,1],c='k',zorder=10)
+# ax.annotate('$\\Gamma$', (sym_points[0,0]+0.5/12, sym_points[0,1]),c='k',fontsize=12,usetex=usetex,zorder=10)
+# ax.annotate(r'$M_y$', (sym_points[1,0]-2.2*0.5/6, sym_points[1,1]),c='k',fontsize=12,usetex=usetex,zorder=10)
+# ax.annotate(r'$M_z$', (sym_points[2,0]-0.4/6, sym_points[2,1]+0.5/6),c='k',fontsize=12,usetex=usetex,zorder=10)
+# ax.annotate(r'$M_x$', (sym_points[3,0]+0.5/12, sym_points[3,1]),c='k',fontsize=12,usetex=usetex,zorder=10)
 
 plt.savefig('accessible.pdf')
 plt.show()
