@@ -615,40 +615,25 @@ class AnnealedSpinConfigurationTriangular:
 
         self.MCEnergyDensity = np.double(file_data[28])
 
-        self.FMOP = np.array(list(map(float,file_data[30+self.Sites+2].split())))
-        self.StripyOP = np.array(list(map(float,file_data[30+self.Sites+3].split())))
-        self.CombinedOP = np.array(list(map(float,file_data[30+self.Sites+3].split())))
+        num_q = 16
+        octo = []
+        quad = []
+        for i in range(num_q):
+            split = file_data[28+self.Sites+4+i].replace('\n',' ').split(' ')
+            q = quad.append(np.double(split[-3]))
+            o = octo.append(np.double(split[-2]))
 
 
         if int(measuring_sweeps) != 0:
-            self.E, self.E2, self.E3, self.E4 = list(map(np.longdouble, file_data[30+self.Sites+7].split()))
-
-
-            self.FMNorm, self.FMNorm2, self.FMNorm4 = list(map(np.longdouble, file_data[30+self.Sites+9].split()))
-            self.PerpNorm, self.PerpNorm2, self.PerpNorm4 = list(map(np.longdouble, file_data[30+self.Sites+10].split()))
-            self.ParNorm, self.ParNorm2, self.ParNorm4 = list(map(np.longdouble, file_data[30+self.Sites+11].split()))
-            self.CombinedNorm, self.CombinedNorm2, self.CombinedNorm4 = list(map(np.longdouble, file_data[30+self.Sites+12].split()))
-
-
+            self.E, self.E2 = list(map(np.longdouble, file_data[28+self.Sites+4+num_q+2].split()))
             self.SpecificHeat = self.Sites/(T_f)**2 * (self.E2 - self.E**2)
-            self.SpecificHeatError = self.Sites/(T_f)**2/np.sqrt(measuring_sweeps/sampling_time) *\
-                                    np.sqrt(
-                                            self.E4 - self.E2**2 + 4*self.E*(
-                                                2*self.E*self.E2 - self.E3 -self.E**3
-                                            )
-                                    )
-            # # print(self.E, self.E2, self.E3, self.E4)
-            # print(self.E4 - self.E2**2 + 4*self.E*(2*self.E*self.E2 - self.E3 -self.E**3))
 
-            self.FMSusceptibility = self.Sites/(T_f)*(self.FMNorm2 - self.FMNorm**2)
-            self.PerpSusceptibility = self.Sites/(T_f)*(self.PerpNorm2 - self.PerpNorm**2)
-            self.ParSusceptibility = self.Sites/(T_f)*(self.ParNorm2 - self.ParNorm**2)
-            self.CombinedSusceptibility = self.Sites/(T_f)*(self.CombinedNorm2 - self.CombinedNorm**2)
+            print(self.SpecificHeat)
 
-            self.FMBinder  = 1- (self.FMNorm4/(self.FMNorm2**2))/3
-            self.PerpBinder= 1- (self.PerpNorm4/(self.PerpNorm2**2))/3
-            self.ParBinder = 1- (self.ParNorm4/(self.ParNorm2**2))/3
-            self.CombinedBinder = 1- (self.CombinedNorm4/(self.CombinedNorm2**2))/3
+            for i in range(num_q):
+                split = file_data[28+self.Sites+4+i].replace('\n',' ').split(' ')
+                q = quad.append(np.double(split[-3]))
+                o = octo.append(np.double(split[-2]))
 
 
     def ExtractMomentsAndPositions(self):
@@ -765,6 +750,68 @@ class AnnealedSpinConfigurationTriangular:
         PlotLineBetweenTwoPoints(ax, g, self.A2)
         PlotLineBetweenTwoPoints(ax, self.A1, self.A1+self.A2)
         PlotLineBetweenTwoPoints(ax, self.A2, self.A1+self.A2)
+        return fig
+
+    def CalculateAndPlotSSF(self, cb_options,usetex):
+        '''
+        Calculates the static structure factor (SSF) defined as
+                s_k/N = 1/N^2 sum_{ij} S_i . S_j exp(-i k.(r_i - r_j) )
+        over a Gamma centered k-mesh of the 1st and 2nd crystal BZ. Kmesh consists
+        of the accessible momentum points of the cluster, ie.
+                      k = m_1 B1 /L1 + m_2 B2 / L2
+        where m_i are integers.
+
+        Returns
+        fig (numpy.ndarray): figure of the SSF and accessible momentum points
+        '''
+        self.ExtractMomentsAndPositions()
+
+        B1, B2 = FindReciprocalVectors(self.A1, self.A2)
+
+        addbz=True
+        addPoints=False
+
+        KX, KY, fig = KMeshForPlotting(B1, B2, self.L1, self.L2, 3, 3, addbz, addPoints, usetex)
+        kx, ky = [np.reshape(x, -1) for x in [KX, KY]]
+        k = np.stack((kx, ky)).T
+        ax = fig.axes[0]
+        scale = 2*pi
+
+        SdotS_mat = np.einsum("ij,kj", self.SpinsXYZ, self.SpinsXYZ)
+        s_kflat = np.zeros(len(k), dtype=np.cdouble)
+        for i, kv in enumerate(k):
+            phase_i = np.exp(1j * np.einsum('i,ji', kv, self.SpinLocations))
+            phase_j = np.exp(-1j * np.einsum('i,ji', kv, self.SpinLocations))
+            phase_mat = np.einsum('i,j->ij', phase_i, phase_j)
+            s_kflat[i] = (SdotS_mat * phase_mat).sum()/ self.Sites**2
+        #     ax.annotate(f'$\quad${np.real(s_kflat[i]):.6f}',
+        #                 kv/scale,
+        #                 fontsize=4,
+        #                 color = 'lightgray')
+        # print(self.SpinsXYZ)
+
+        ssf = np.reshape(s_kflat, KX.shape)
+
+        ssf_complex_flag = not np.all(np.imag(ssf) < gen_eps)
+
+        if ssf_complex_flag:
+            print("Warning: SSF has complex values. Please recheck calculation.")
+
+        ssf = np.sqrt(np.real(ssf))
+
+
+        #note: we are plotting the real part, since the SSF should be real.
+
+        fraction, orientation, colormap = cb_options
+        c = ax.scatter(KX/scale, KY/scale, c=ssf, cmap=colormap, edgecolors="none",zorder=0)
+        cbar = fig.colorbar(c, fraction=fraction, orientation=orientation)
+        cbar.ax.set_title(r'{\rm Relative} $s_\mathbf{k}$',usetex=usetex,fontsize=9,y=-3)
+
+        ticks = np.linspace(0,1,4+1)
+        cbar.set_ticks(ticks)
+        cbar.ax.set_yticklabels([f'${val:.2f}$' for val in ticks],usetex=usetex,fontsize=9)
+        # cbar.ax.set_xticklabels([f'${val:.2f}$' for val in ticks],usetex=usetex,fontsize=9)
+
         return fig
 
     def PlotDipolarField(self):
