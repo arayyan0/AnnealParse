@@ -1,6 +1,6 @@
 import numpy as np
-import matplotlib
-matplotlib.use('tkagg')
+# import matplotlib as mpl
+# mpl.use('tkagg')
 import matplotlib.pyplot as plt
 from spin_lib import AnnealedSpinConfigurationTriangular
 import sys
