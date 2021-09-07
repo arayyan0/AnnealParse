@@ -1,7 +1,7 @@
 import numpy as np
 
-import matplotlib as mpl
-mpl.use('tkagg')
+# import matplotlib as mpl
+# mpl.use('tkagg')
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as clr
@@ -822,10 +822,7 @@ class AnnealedSpinConfigurationTriangular:
             z = 0
             for Sj, rj in zip(self.SpinsXYZ[:,2], self.SpinLocations):
                 R = np.linalg.norm(ri - rj)
-                if R > 10e-6:
-                    z += self.DipolarField(R, Sj)
-                else:
-                    z += Sj
+                z += self.DipolarField(R, Sj)
             Bfield[i] = z
 
         oneD1, oneD2 = (np.arange(0, l) for l in [self.L1, self.L2])
