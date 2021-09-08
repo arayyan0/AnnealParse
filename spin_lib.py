@@ -581,7 +581,7 @@ class AnnealedSpinConfigurationTriangular:
         filename (string): filename of the simulated annealing raw data file.
         '''
         self.Filename = filename
-        print(filename)
+        # print(filename)
 
         with open(self.Filename, 'r') as f:
             file_data = f.readlines()
@@ -620,20 +620,46 @@ class AnnealedSpinConfigurationTriangular:
         quad = []
         for i in range(num_q):
             split = file_data[28+self.Sites+4+i].replace('\n',' ').split(' ')
-            q = quad.append(np.double(split[-3]))
-            o = octo.append(np.double(split[-2]))
+            quad.append(np.double(split[-3]))
+            octo.append(np.double(split[-2]))
 
 
         if int(measuring_sweeps) != 0:
             self.E, self.E2 = list(map(np.longdouble, file_data[28+self.Sites+4+num_q+2].split()))
             self.SpecificHeat = self.Sites/(T_f)**2 * (self.E2 - self.E**2)
+            # print(self.E, self.E2, self.E2 - self.E**2, self.Sites/(T_f)**2, self.SpecificHeat)
 
-            print(self.SpecificHeat)
-
+            octobar = []
+            quadbar = []
             for i in range(num_q):
-                split = file_data[28+self.Sites+4+i].replace('\n',' ').split(' ')
-                q = quad.append(np.double(split[-3]))
-                o = octo.append(np.double(split[-2]))
+                split = file_data[28+self.Sites+4+num_q+2+3+i].replace('\n',' ').split(' ')
+                quadbar.append(np.double(split[-3]))
+                octobar.append(np.double(split[-2]))
+
+            self.OctoBar = self.AnalyzeQPoints(octobar)
+            self.QuadBar = self.AnalyzeQPoints(quadbar)
+
+            self.QLabels = [r'$\Gamma$', r"$\Gamma'$", r'$K$',r'$K/2$',r'$M$',r'$2M/3$']
+
+    def AnalyzeQPoints(self, allqlist):
+        '''
+        q points are currently
+        G,
+        Gpx, Gpy, Gpz,
+        Kx, Ky, Kz,
+        Kx/2, Ky/2, Kz/2,
+        Mx, My, Mz,
+        2Mx/3, 2My/3, 2Mz/3
+        '''
+
+        g = allqlist[0]
+        gpmax       = max(allqlist[1:1+3])
+        kmax        = max(allqlist[4:4+3])
+        kdiv2max    = max(allqlist[7:7+3])
+        mmax        = max(allqlist[10:10+3])
+        twothirdmmax = max(allqlist[13:13+3])
+
+        return [g, gpmax, kmax, kdiv2max, mmax, twothirdmmax]
 
 
     def ExtractMomentsAndPositions(self):

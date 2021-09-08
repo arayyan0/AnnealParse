@@ -5,13 +5,13 @@ import os
 import glob as glob
 
 # L=36
-which = f'extendeddefect'
+which = f'test-0907'
 plot_individual=False
 scale = 3.5
-for number in range(1,3+1):
+for number in range(0,0+1):
     run = f'{number}'
 
-    for version in range(1,1+1):
+    for version in range(1,2+1):
         data_folder = f'out/{which}/jobrun_{run}/v_{version}/'
         print(data_folder)
         plot_folder = data_folder + f'plots/'
@@ -22,8 +22,8 @@ for number in range(1,3+1):
 
         Tlst = []
         fluclist = []
-        OPlist = []
-        binderlist = []
+        quadlist = []
+        octolist = []
 
         for file in file_lst:
             split_file = file.replace('/','_').split('_')
@@ -31,15 +31,9 @@ for number in range(1,3+1):
             spinstuff = AnnealedSpinConfigurationTriangular(file)
 
             Tlst.append(T)
-
-            fluclist.append([spinstuff.SpecificHeat, spinstuff.SpecificHeatError,
-                spinstuff.FMSusceptibility, spinstuff.PerpSusceptibility,
-                spinstuff.ParSusceptibility, spinstuff.CombinedSusceptibility
-            ])
-
-            OPlist.append([spinstuff.FMNorm,spinstuff.PerpNorm,spinstuff.ParNorm,spinstuff.CombinedNorm])
-
-            binderlist.append([spinstuff.FMBinder, spinstuff.PerpBinder, spinstuff.ParBinder,spinstuff.CombinedBinder])
+            fluclist.append(spinstuff.SpecificHeat)
+            quadlist.append(spinstuff.QuadBar)
+            octolist.append(spinstuff.OctoBar)
 
             if plot_individual == True:
                 # quiver_options = [0.6*35, 1.5, 3.5]       #[scale, minlength, headwidth]
@@ -53,48 +47,60 @@ for number in range(1,3+1):
 
         Tarray = np.array(Tlst)
         flucarray = np.array(fluclist)
-        OParray = np.array(OPlist)
-        binderarray = np.array(binderlist)
+        quadarray = np.array([np.array(xi) for xi in quadlist ])
+        octoarray = np.array([np.array(xi) for xi in octolist ])
+        # print(quadarray)
 
         idx = np.argsort(Tarray)
         Tarray = Tarray[idx]
         flucarray = flucarray[idx]
-        OParray = OParray[idx]
-        binderarray  = binderarray[idx]
+        quadarray = quadarray[idx, :]
+        octoarray = octoarray[idx, :]
 
-        # print(flucarray.shape)
-        # print(OParray.shape)
-        # print(binderarray.shape)
+        num_q = quadarray.shape[1]
 
-        fig,(ax1,ax2,ax3) = plt.subplots(3,1,sharex=True)
+        fig,(ax1,ax2, ax3) = plt.subplots(3,1,sharex=True)
 
-        colors = ['blue', 'orange', 'green','purple']
-        OPscale = scale
-        # ax1.plot(Tarray,OParray[:,0]*OPscale, '-o',label=fr'$\langle |m| \rangle\times{OPscale}$',color=colors[0])
-        ax1.plot(Tarray,OParray[:,1], '-o', label=fr'$\langle |m^\bot| \rangle$',color=colors[1])
-        ax1.plot(Tarray,OParray[:,2]*OPscale,'-o', label=fr'$\langle |m^\parallel| \rangle\times{OPscale}$',color=colors[2])
-        ax1.plot(Tarray,OParray[:,3],'-o', label=fr'$\langle |M| \rangle$',color=colors[3])
+        ax1.plot(Tarray,flucarray, '-o',color='purple')
 
-        ax1.axhline(0,ls='--',color='gray')
-        ax1.axhline(1,ls='--',color='gray')
-        ax1.set_ylim(0,1)
-        ax1.legend()
+        scale_q, scale_o = 1, 10
+        colors = ['red', 'green', 'blue', 'black', 'orange', 'teal']
+        for i in range(num_q):
+            ax2.plot(Tarray,quadarray[:,i]*scale_q,
+                        '-o',
+                        # s=10,
+                        color=colors[i],
+                        # facecolors='none',
+                        # linewidth=2,
+                        label=spinstuff.QLabels[i])
+            ax3.plot(Tarray,octoarray[:,i]*scale_o,
+                        '-o',
+                        # s=10,
+                        color=colors[i],
+                        # facecolors='none',
+                        # linewidth=2,
+                        label=spinstuff.QLabels[i])
+        ax2.axhline(0,ls='--',color='gray')
+        ax2.axhline(1,ls='--',color='gray')
+        ax2.set_ylim(0,1)
 
-        flucscale = scale
-        # ax3.plot(Tarray,flucarray[:,2]*flucscale, '-o', label=rf'$\chi\times{flucscale}$',color=colors[0])
-        ax3.plot(Tarray,flucarray[:,3], '-o', label=rf'$\chi^\bot$',color=colors[1])
-        ax3.plot(Tarray,flucarray[:,4]*flucscale, '-o', label=rf'$\chi^\parallel\times{flucscale}$',color=colors[2])
-        ax3.plot(Tarray,flucarray[:,5], '-o', label=rf'$X$',color=colors[3])
         ax3.axhline(0,ls='--',color='gray')
+        ax3.axhline(1,ls='--',color='gray')
+        ax3.set_ylim(0,1)
+
         ax3.legend()
 
-        ax2.plot(Tarray,flucarray[:,0], '-o', label=r'$c_V$',color='red')
-        ax2.legend()
+        ax1.set_ylabel(r'$C$'                                      , rotation=0, labelpad=30)
+        ax2.set_ylabel(r'$%i \times m^{Quad}_\mathbf{k}$'%(scale_q), rotation=0, labelpad=30)
+        ax3.set_ylabel(r'$%i \times m^{Octo}_\mathbf{k}$'%(scale_o), rotation=0, labelpad=30)
 
-        ax3.set_xlim(0,np.max(Tarray))
-        ax3.set_xlabel('T')
+        ax3.set_xlabel(r'$T$')
+
+        ax1.grid(axis='x')
+        ax2.grid(axis='x')
+        ax3.grid(axis='x')
 
         fig.tight_layout()
         plt.savefig(plot_folder+f'temp_obsv.pdf')
-        plt.show()
+        # plt.show()
         plt.close()
