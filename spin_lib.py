@@ -611,35 +611,34 @@ class AnnealedSpinConfigurationTriangular:
         self.DefectQuad, self.DefectOcto, self.Lengthscale, self.NumDefects = list(map(np.double, file_data[25].replace('/',' ').split()))
 
 
-        # self.HamiltonianParameters = [Jtau, lambd, defect, num_defects, hfield, hdirection]
-
         self.MCEnergyDensity = np.double(file_data[28])
-
-        num_q = 16
-        octo = []
-        quad = []
-        for i in range(num_q):
-            split = file_data[28+self.Sites+4+i].replace('\n',' ').split(' ')
-            quad.append(np.double(split[-3]))
-            octo.append(np.double(split[-2]))
-
-
-        if int(measuring_sweeps) != 0:
-            self.E, self.E2 = list(map(np.longdouble, file_data[28+self.Sites+4+num_q+2].split()))
-            self.SpecificHeat = self.Sites/(T_f)**2 * (self.E2 - self.E**2)
-            # print(self.E, self.E2, self.E2 - self.E**2, self.Sites/(T_f)**2, self.SpecificHeat)
-
-            octobar = []
-            quadbar = []
-            for i in range(num_q):
-                split = file_data[28+self.Sites+4+num_q+2+3+i].replace('\n',' ').split(' ')
-                quadbar.append(np.double(split[-3]))
-                octobar.append(np.double(split[-2]))
-
-            self.OctoBar = self.AnalyzeQPoints(octobar)
-            self.QuadBar = self.AnalyzeQPoints(quadbar)
-
-            self.QLabels = [r'$\Gamma$', r"$\Gamma'$", r'$K$',r'$K/2$',r'$M$',r'$2M/3$']
+        self.ExtractMomentsAndPositions()
+        #
+        # num_q = 16
+        # octo = []
+        # quad = []
+        # for i in range(num_q):
+        #     split = file_data[28+self.Sites+4+i].replace('\n',' ').split(' ')
+        #     quad.append(np.double(split[-3]))
+        #     octo.append(np.double(split[-2]))
+        #
+        #
+        # if int(measuring_sweeps) != 0:
+        #     self.E, self.E2 = list(map(np.longdouble, file_data[28+self.Sites+4+num_q+2].split()))
+        #     self.SpecificHeat = self.Sites/(T_f)**2 * (self.E2 - self.E**2)
+        #     # print(self.E, self.E2, self.E2 - self.E**2, self.Sites/(T_f)**2, self.SpecificHeat)
+        #
+        #     octobar = []
+        #     quadbar = []
+        #     for i in range(num_q):
+        #         split = file_data[28+self.Sites+4+num_q+2+3+i].replace('\n',' ').split(' ')
+        #         quadbar.append(np.double(split[-3]))
+        #         octobar.append(np.double(split[-2]))
+        #
+        #     self.OctoBar = self.AnalyzeQPoints(octobar)
+        #     self.QuadBar = self.AnalyzeQPoints(quadbar)
+        #
+        #     self.QLabels = [r'$\Gamma$', r"$\Gamma'$", r'$K$',r'$K/2$',r'$M$',r'$2M/3$']
 
     def AnalyzeQPoints(self, allqlist):
         '''
@@ -677,6 +676,7 @@ class AnnealedSpinConfigurationTriangular:
 
         self.SpinLocations = np.array(np.empty((self.Sites, 2)))
         self.SpinsXYZ = np.empty((self.Sites, 3))
+        self.DipoleMoment = np.empty((self.Sites, 3))
         for i, line in enumerate(file_data[30:30+self.Sites]):
             n1, n2, sub, Sx, Sy, Sz = line.split()
             # print(n1, n2, sub, Sx, Sy, Sz)
@@ -685,6 +685,11 @@ class AnnealedSpinConfigurationTriangular:
             )
             self.SpinLocations[i] = IndexToPosition(self.A1, self.A2, self.SublatticeVectors,
                                                       map(int,[n1,n2,sub]))
+            self.DipoleMoment[i] = np.array([0,0,np.longdouble(Sy)])
+
+        r_outofplane = 0 #moments are restricted to the single plane! UNLIKE muon
+        self.SpinLocations3D = np.pad(self.SpinLocations, ((0,0),(0,1)),
+                                      mode='constant', constant_values=r_outofplane)
 
     def PlotSpins(self, quiver_options, cb_options,usetex):
         '''
@@ -696,7 +701,6 @@ class AnnealedSpinConfigurationTriangular:
         fig (numpy.ndarray): figure of the spin configuration over the , as well
                              as the unit cell used to construct the cluster
         '''
-        self.ExtractMomentsAndPositions()
 
         sss, minlength, headwidth = quiver_options
         fraction, orientation, cm, tickaxis = cb_options
@@ -729,11 +733,12 @@ class AnnealedSpinConfigurationTriangular:
                   scale=25,
                   # headlength = 2,
                   # headaxislength = 2,
-                  # headwidth = 3,
+                  headwidth = 6,
                   minlength=minlength,
                   # headaxislength=0.1
                   # minshaft=0.7,
                   linewidth=0.2,
+                  width=0.0025,
                   ec='black')
 
         if (self.NumDefects == 1) and ((self.DefectQuad!=0) or (self.DefectOcto!=0)):
@@ -741,7 +746,9 @@ class AnnealedSpinConfigurationTriangular:
                         radius=self.Lengthscale*2, fill=True, alpha=0.1, linewidth=1.5,color='black')
             ax.add_patch(defe)
 
-        plt.title(f'$J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f}, $a^Q$ = {self.DefectQuad:.2f}, $a^O$ = {self.DefectOcto:.2f}, $L$ = {self.Lengthscale:.2f}  ')
+        plt.title(f'$J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f},\
+                    $a^Q$ = {self.DefectQuad:.2f}, $a^O$ = {self.DefectOcto:.2f},\
+                    $L$ = {self.Lengthscale:.2f}  ')
 
         # ax.quiver(self.SpinLocations[:,0], self.SpinLocations[:,1],
         #           sign*self.SpinsXYZ[:,0]     , sign*self.SpinsXYZ[:,1]     ,
@@ -790,7 +797,6 @@ class AnnealedSpinConfigurationTriangular:
         Returns
         fig (numpy.ndarray): figure of the SSF and accessible momentum points
         '''
-        self.ExtractMomentsAndPositions()
 
         B1, B2 = FindReciprocalVectors(self.A1, self.A2)
 
@@ -840,29 +846,172 @@ class AnnealedSpinConfigurationTriangular:
 
         return fig
 
+    def CalculateMuonProperties(self):
+        line_density = 4
+        # create meshgrid
+
+        # oneD1, oneD2 = [ np.arange(0, LL, 1/line_density) for LL in [3, 3] ]
+        oneD1, oneD2 = [ np.arange(0, LL, 1/line_density) for LL in [self.L1, self.L2] ]
+        n1, n2 = np.meshgrid(oneD1, oneD2)  # grid points indexing a1/a2 direction
+        self.MuonX, self.MuonY = (n1 * self.A1[i] + n2 * self.A2[i] + self.SublatticeVectors[0][i] for i in [0,1])  # bends meshgrid into shape of BZ
+        x, y = [np.reshape(z, -1) for z in [self.MuonX, self.MuonY]]
+        r_muon_list = np.stack((x, y)).T
+
+        #creates list of dipolar fields at each muon point, B = (x, y, z) spatial basis (same as a1, a2)
+        r_muon_outofplane = 0/5.6 # 1 = 5.6 Angstroms
+        self.MuonPositions = np.pad(r_muon_list, ((0,0),(0,1)),
+                                    mode='constant', constant_values=r_muon_outofplane)
+        self.BField = np.zeros(np.shape(self.MuonPositions))
+        for muon_site, r_muon in enumerate(self.MuonPositions):
+            self.BField[muon_site,:] = TotDipolarField(r_muon, self.SpinLocations3D, self.DipoleMoment)
+        self.BField_y = self.BField[:,2]
+        self.BField_norm = np.linalg.norm(self.BField,axis=1)
+
+        # print(self.MuonPositions.shape)
+        # print(self.BField_norm.shape)
+
     def PlotDipolarField(self):
-        self.ExtractMomentsAndPositions()
+        '''
+        create meshgrid and plot the dipolar fields over it for plotting
+        '''
+        #selects whether to plot Bz component or the norm, plus reshapes for pcolormesh
+        norm_or_y = True
+        if norm_or_y: #plot norm if True
+            plot = self.BField_norm
+            title = r"$|\vec{B}_{dip}|$ (G)"
+        else:         #plot outofplane if False
+            plot = self.BField_y
+            title = r"$B^y_{dip}$ (G)"
+        nx = self.MuonX.shape[0]
+        ny = self.MuonY.shape[0]
+        plot_mat  = np.resize(plot, (nx, ny) )
 
-        Bfield = np.empty(self.SpinLocations.shape[0], dtype=float)
-        for i, ri in enumerate(self.SpinLocations):
-            z = 0
-            for Sj, rj in zip(self.SpinsXYZ[:,2], self.SpinLocations):
-                R = np.linalg.norm(ri - rj)
-                z += self.DipolarField(R, Sj)
-            Bfield[i] = z
+        #a flag that centers the colormap around zero if it is crossed
+        crosseszero = False
+        innn = np.nanmin(plot_mat)
+        axxx = np.nanmax(plot_mat)
+        if (innn < 0) and (axxx>0):
+            crosseszero = True
+            divnorm=TwoSlopeNorm(vmin=innn, vmax=axxx,vcenter=0.0)
 
-        oneD1, oneD2 = (np.arange(0, l) for l in [self.L1, self.L2])
-        n1, n2 = np.meshgrid(oneD1, oneD2)  # grid points indexing G1/G2 direction
-        X, Y = (n1 * self.A1[i] + n2 * self.A2[i] + self.SublatticeVectors[0][i] for i in [0,1])  # bends meshgrid into shape of BZ
-        divnorm=TwoSlopeNorm(vmin=Bfield.min(), vcenter=0, vmax=Bfield.max())
-        Bfield.resize(self.L1, self.L2)
+        #create plot
         fig, ax = plt.subplots()
-        c = ax.pcolormesh(X, Y, Bfield, cmap = 'seismic', shading = 'auto',edgecolors='k', norm=divnorm)
-        fig.colorbar(c, ax=ax)
+        if crosseszero:
+            c = ax.pcolormesh(self.MuonX, self.MuonY, plot_mat, cmap = 'seismic', shading = 'nearest', norm=divnorm)#, ec = 'k', lw=0.1)
+        else:
+            c = ax.pcolormesh(self.MuonX, self.MuonY, plot_mat, cmap = 'Reds', shading = 'nearest')
+        cb = plt.colorbar(c, ax=ax)
+
+        cb.set_label(title)
         ax.axis("off")
         ax.axis("equal") #zooms in on arrows
         plt.title(f'$J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f}, $a^Q$ = {self.DefectQuad:.2f}, $a^O$ = {self.DefectOcto:.2f}, $L$ = {self.Lengthscale:.2f}  ')
+
+        #add the triangular lattice
+        for x in range(0,self.L1+1):
+            for y in range(-1,self.L2):
+        #         #used for rhom unit cell
+                center1 = x * self.A1 + y * self.A2
+                hex2 = ptch.RegularPolygon(
+                center1+(a1+a2)/3, 3, 1 / sqrt3, 0, fill=False, linewidth=0.005,color='gray')
+                ax.add_patch(hex2)
+
+        #add the defect range
+        defe = ptch.Circle(3*self.L1/6 *self.A1 + 3*self.L2/6 *self.A2 +(self.A1+self.A2)/3,
+                    radius=self.Lengthscale*2, fill=True, alpha=0.1, linewidth=1.5,color='black')
+        ax.add_patch(defe)
+
         return fig
 
-    def DipolarField(self, R, Sj):
-        return -Sj / R**3
+    # def FilterMuonPositions(self):
+    #     Rd  = 2*self.Lengthscale
+    #     eps = 1/5.6
+    #
+    #     rdefect_outofplane = 0
+    #     pos_d = 3*self.L1/6 *self.A1 + 3*self.L2/6 *self.A2 +(self.A1+self.A2)/3
+    #     pos_dd = np.concatenate((pos_d, np.array([rdefect_outofplane])))
+    #
+    #     bool = np.linalg.norm(self.MuonPositions - pos_dd, axis=1) <= Rd
+    #     filtered_positions = self.MuonPositions[bool]
+    #     filtered_fields = self.BField_norm[bool]
+    #
+    #     print(filtered_positions)
+    #
+    #     print(filtered_positions.shape)
+    #     print(filtered_fields.shape)
+
+        # for i in range(self.SpinLocations3D.shape[0]):
+        #     bool = np.linalg.norm(filtered_positions - self.SpinLocations3D[i,:], axis=1) >= eps
+        #     filtered_positions = filtered_positions[bool]
+        #     filtered_fields = filtered_fields[bool]
+        #
+        # print(filtered_positions.shape)
+        # print(filtered_fields.shape)
+        # boolArr = np.linalg.norm(self. - pos_d) > Rd
+
+    def PlotMuonProbability(self):
+        Rd  = 2*self.Lengthscale
+        eps = 1/5.6
+
+        rdefect_outofplane = 0
+        pos_d = 3*self.L1/6 *self.A1 + 3*self.L2/6 *self.A2 +(self.A1+self.A2)/3
+        pos_dd = np.concatenate((pos_d, np.array([rdefect_outofplane])))
+
+        bool = np.linalg.norm(self.MuonPositions - pos_dd, axis=1) <= Rd
+        filtered_positions = self.MuonPositions[bool]
+        filtered_fields = self.BField_norm[bool]
+
+        print(filtered_positions.shape)
+        print(filtered_fields.shape)
+
+        for i in range(self.SpinLocations3D.shape[0]):
+            bool = np.linalg.norm(filtered_positions - self.SpinLocations3D[i,:], axis=1) >= eps
+            filtered_positions = filtered_positions[bool]
+            filtered_fields = filtered_fields[bool]
+
+        print(filtered_positions.shape)
+        print(filtered_fields.shape)
+
+        bp_min=0.0
+        bp_max=1000
+        Nbp=10000
+        bp_array = np.linspace(bp_min,bp_max,Nbp+1)
+        print(bp_array)
+        #
+        eps = (bp_max - bp_min)/Nbp
+        p_array = np.zeros(bp_array.shape, dtype=float)
+        for bp_index, bp in enumerate(bp_array):
+            for Bdip in filtered_fields:
+                p_array[bp_index] += Lorentzian(bp - Bdip, eps)
+        p_array = p_array/self.MuonPositions.shape[0]
+        # print(p_array)
+
+        fig, ax = plt.subplots()
+        # ax.semilogy(bp_array, p_array)
+        ax.plot(bp_array, p_array)
+
+        ax.set_xlabel(r"$|\vec{B}_{dip}|$ (G)")
+        ax.set_ylabel(r"$p(B')$")
+
+def DipolarField(R_i, R_i_norm, m_i):
+    r_i = R_i/R_i_norm
+    return (3*r_i.dot(m_i)*r_i - m_i) / (R_i_norm**3)
+
+def TotDipolarField(r_muon, r_i_list, moment_list):
+
+    outer_radius = 100   #to speed up calculation but make sure it includes relevant!!
+    inner_radius = 1e-4  #to prevent on-site contributions
+
+    z = 0
+    for r_i, m_i in zip(r_i_list, moment_list):
+        l_i = np.linalg.norm(r_muon - r_i)
+        if (l_i < outer_radius) and (l_i > inner_radius):
+            z += DipolarField(r_muon - r_i, l_i, m_i)
+        else: # zerto if on-site or outside outer_radius
+            z += 0
+
+    coefficient  = 52 #sets units
+    return coefficient*z
+
+def Lorentzian(x, eps):
+    return eps/2 / (x**2 + (eps/2)**2) / pi
