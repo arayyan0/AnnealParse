@@ -3,7 +3,8 @@ import matplotlib.colors as clr
 import matplotlib.patches as ptch
 import matplotlib.pyplot as plt
 
-from common import pi, PlotLineBetweenTwoPoints,sqrt3,a1,a2
+from common import pi, PlotLineBetweenTwoPoints,sqrt3,a1,a2,FindReciprocalVectors,\
+                   KMeshForPlotting,gen_eps
 
 class MonteCarloOutput:
     '''
@@ -106,6 +107,70 @@ class MonteCarloOutput:
 
         if self.Dimensions == 2:
             ax.set_zlim3d(-1,1)
+        return fig
+
+    def Plot2DSSF(self, whichplane, cb_options,usetex):
+        '''
+        Calculates the static structure factor (SSF) defined as
+                s_k/N = 1/N^2 sum_{ij} S_i . S_j exp(-i k.(r_i - r_j) )
+        over a Gamma centered k-mesh of the 1st and 2nd crystal BZ. Kmesh consists
+        of the accessible momentum points of the cluster, ie.
+                      k = m_1 B1 /L1 + m_2 B2 / L2
+        where m_i are integers.
+
+        Returns
+        fig (numpy.ndarray): figure of the SSF and accessible momentum points
+        '''
+        if whichplane == -1:
+            layer_index = np.argmax(self.LayerNumber)
+        else:
+            layer_index = whichplane
+
+        spins, locs = self.LayerSpins[layer_index], self.LayerPositions[layer_index]
+
+        B1, B2 = FindReciprocalVectors(self.T1[:2], self.T2[:2])
+
+        addbz=True
+        addPoints=False
+
+        KX, KY, fig = KMeshForPlotting(B1, B2, self.L1, self.L2, 3, 3, addbz, addPoints, usetex)
+        kx, ky = [np.reshape(x, -1) for x in [KX, KY]]
+        k = np.stack((kx, ky)).T
+        ax = fig.axes[0]
+        scale = 2*pi
+
+        SdotS_mat = np.einsum("ij,kj", spins, spins)
+        s_kflat = np.zeros(len(k), dtype=np.cdouble)
+        for i, kv in enumerate(k):
+            phase_i = np.exp(1j * np.einsum('i,ji', kv, locs[:,:2]))
+            phase_j = np.exp(-1j * np.einsum('i,ji', kv, locs[:,:2]))
+            phase_mat = np.einsum('i,j->ij', phase_i, phase_j)
+            s_kflat[i] = (SdotS_mat * phase_mat).sum()/ self.NumSites**2
+        #     ax.annotate(f'$\quad${np.real(s_kflat[i]):.6f}',
+        #                 kv/scale,
+        #                 fontsize=4,
+        #                 color = 'lightgray')
+        # print(self.SpinsXYZ)
+
+        ssf = np.reshape(s_kflat, KX.shape)
+
+        ssf_complex_flag = np.any(np.imag(ssf) > gen_eps)
+        if ssf_complex_flag:
+            print("Warning: SSF has complex values. Please recheck calculation.")
+
+        ssf = np.nan_to_num(np.sqrt(np.real(ssf)))
+        #note: we are plotting the real part, since the SSF should be real.
+
+        fraction, orientation, colormap = cb_options
+        c = ax.scatter(KX/scale, KY/scale, c=ssf, cmap=colormap, edgecolors="none",zorder=0)
+        cbar = fig.colorbar(c, fraction=fraction, orientation=orientation)
+        cbar.set_label(r'$\sqrt{s_\mathbf{k}} $',rotation=0,labelpad=10)
+
+        # ticks = np.linspace(0,1,4+1)
+        # cbar.set_ticks(ticks)
+        # cbar.ax.set_yticklabels([f'${val:.2f}$' for val in ticks],usetex=usetex,fontsize=9)
+        # cbar.ax.set_xticklabels([f'${val:.2f}$' for val in ticks],usetex=usetex,fontsize=9)
+
         return fig
 
     def Plot2DPlane(self, whichplane, quiver_options, cb_options, usetex):

@@ -24,7 +24,6 @@ print(spinstuff.MCEnergyPerSite)
 # plt.close()
 ##----------------------------------------------Plot Az layer spin configuration
 plane = -1 #-1 for Az plane with most moments, >=0 otherwise
-
 if spinstuff.NumSites > 500:
     quiver_options = [11*35, 2.5, 2]       #[scale, minlength, headwidth]
 else:
@@ -37,7 +36,16 @@ for plane in range(len(spinstuff.LayerNumber)):
     plt.savefig(f'2d_spins_{output_data_filename}_plane_{plane}.pdf')
     plt.show()
     plt.close()
-
+##----------------------------------------------Plot Az layer SSF
+plane = -1 #-1 for Az plane with most moments, >=0 otherwise
+cb_options =[0.04, 'vertical', 'viridis']    #[fraction, orientation, colormap]
+usetex=False
+for plane in range(len(spinstuff.LayerNumber)):
+    fig = spinstuff.Plot2DSSF(plane,cb_options,usetex)
+    fig.axes[0].set_facecolor('black')
+    plt.savefig(f'2d_ssf_{output_data_filename}_plane_{plane}.pdf')
+    plt.show()
+    plt.close()
 ##---------------------------------------------------------------muSR simulation
 # muon_simulation = MuonSimulation(input_data_filename)
 # fig = muon_simulation.PlotFieldDistribution()
