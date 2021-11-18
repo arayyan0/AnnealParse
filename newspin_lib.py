@@ -37,25 +37,28 @@ class MonteCarloOutput:
         #extract the deterministic sweeps: if 0, then it's finite T. else, it's SA
         self.DetSweeps = [int(x) for x in file_data[20].split()]
 
-        #WARNING: FROM HERE ON, THE NUMBERS ONLY WORK WITH MULTIPOLE HAMILTONIAN.
+        #WARNING: FROM HERE ON, THE NUMBERS ONLY WORK WITH MULTIPOLE HAMILTONIAN (w/o defects).
         #         NEED A CLEVER WAY TO PARSE WHEN THERE ARE MULTIPLE HAMILTONIA
         #         ALTERNATIVELY, PUT C++ OUTPUT INTO HD5 FILE. WILL DO THIS WHEN
         #         I DO OTHER HAMILTONIANS
 
         #extract the pseudospin to mind basis transformation
-        self.ChangeBasis = np.array(list(map(np.double, [x.split() for x in file_data[33:33+3]])))
+        self.ChangeBasis = np.array(list(map(np.double, [x.split() for x in file_data[31:31+3]])))
+
+        #extract the jtau/jb interactions
+        self.JTau, self.JB = np.array(list(map( np.double, file_data[23].replace("/"," ").replace("\n","").split(" ") )))
 
         #extract the quad/octo interactions
-        self.JQuad, self.JOcto = np.array(list(map( np.double, file_data[27].replace("/"," ").replace("\n","").split(" ") )))
+        self.JQuad, self.JOcto = np.array(list(map( np.double, file_data[25].replace("/"," ").replace("\n","").split(" ") )))
 
         #extract the defect properties
-        self.DefectQuad, self.DefectOcto, self.DefectLengthScale, self.NumDefects = np.array(list(map(np.double, file_data[37].replace("\n","").split(" "))))
+        self.DefectQuad, self.DefectOcto, self.DefectLengthScale, self.NumDefects = np.array([0,0,0,0])
 
         #extract the energy
-        self.MCEnergyPerSite = np.double(file_data[40])
+        self.MCEnergyPerSite = np.double(file_data[36])
 
         #extract spin positions (in mind basis)
-        self.SpinConfigIndices = np.array(list(map(np.double, [x.split() for x in file_data[42:42+self.NumSites]])))[:,:4]
+        self.SpinConfigIndices = np.array(list(map(np.double, [x.split() for x in file_data[38:38+self.NumSites]])))[:,:4]
 
         self.SpinPositions = np.empty((self.NumSites, 3), dtype = np.double)
         for i, a in enumerate(self.SpinConfigIndices):
@@ -63,7 +66,7 @@ class MonteCarloOutput:
         # print(self.SpinPositions)
 
         #extract spins (in pseudospin and mind basis)
-        self.SpinConfigSpinBasis = np.array(list(map(np.double, [x.split() for x in file_data[42:42+self.NumSites]])))[:,4:]
+        self.SpinConfigSpinBasis = np.array(list(map(np.double, [x.split() for x in file_data[38:38+self.NumSites]])))[:,4:]
         self.SpinConfigMindBasis = (self.ChangeBasis @ self.SpinConfigSpinBasis.T).T
 
         self.LayerPositions, self.LayerSpins, self.LayerNumber = self.SortPlanes()
@@ -156,7 +159,7 @@ class MonteCarloOutput:
             radius=self.DefectLengthScale*2, fill=True, alpha=0.1, linewidth=1.5,color='black')
             ax.add_patch(defe)
 
-        plt.title(f'$J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f}, $a^Q$ = {self.DefectQuad:.2f}, $a^O$ = {self.DefectOcto:.2f}, $L$ = {self.DefectLengthScale:.2f}  ')
+        plt.title(f'$J^\tau$ = {self.JTau:.2f}, $J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f}, $J^B$ = {self.JB:.2f}')
 
         if self.Dimensions==2:
             if self.WhichLattice == 0:
@@ -256,7 +259,7 @@ class MuonSimulation(MonteCarloOutput):
     def PlotFieldDistribution(self):
         fig, ax = plt.subplots()
         plt.hist(self.BField_norm, bins=60,range=(0,200))
-        plt.title(f'$J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f}, $a^Q$ = {self.DefectQuad:.2f}, $a^O$ = {self.DefectOcto:.2f}, $L$ = {self.DefectLengthScale:.2f}  ')
+        plt.title(f'$J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f}, $J^B$ = {self.JB:.2f}')
         ax.set_xlabel(r"$|\vec{B}_{dip}|$ (G)")
         ax.set_ylabel(r"$count$",rotation=0)
         return fig
