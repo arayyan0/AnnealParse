@@ -68,9 +68,39 @@ class MonteCarloOutput:
 
         #extract spins (in pseudospin and mind basis)
         self.SpinConfigSpinBasis = np.array(list(map(np.double, [x.split() for x in file_data[38:38+self.NumSites]])))[:,4:]
+
+        spins = self.SpinConfigSpinBasis
+        tr_spins = self.SpinConfigSpinBasis
+        # #####################
+        # #####################
+        # ##----------plotting the tau pseudospins
+        # m = self.CalculateTauPseudospinMatrix()/np.sqrt(3/2)
+        # print(m)
+        # spins = np.einsum('ij,lj->li', m, tr_spins)
+        # #####################
+        # #####################
+        # for i in range(tr_spins.shape[0]):
+        #     print(spins[i,:])
+        #     print(tr_spins[i,:])
+        #     print(".....")
+
+        # self.SpinConfigSpinBasis = spins
+
+
         self.SpinConfigMindBasis = (self.ChangeBasis @ self.SpinConfigSpinBasis.T).T
 
         self.LayerPositions, self.LayerSpins, self.LayerNumber = self.SortPlanes()
+    #
+    # def CalculateTauPseudospinMatrix(self):
+    #     angles = np.array([2*np.pi/3, 4*np.pi/3, 0])
+    #
+    #     m = np.array([
+    #                     np.sin(angles),
+    #                     np.zeros(3),
+    #                     np.cos(angles)
+    #     ]).T
+    #
+    #     return m
 
     def SortPlanes(self):
         z_planes  = np.unique(self.SpinPositions[:,2])
@@ -158,13 +188,14 @@ class MonteCarloOutput:
         if ssf_complex_flag:
             print("Warning: SSF has complex values. Please recheck calculation.")
 
-        ssf = np.nan_to_num(np.sqrt(np.real(ssf)))
+        ssf = np.sqrt(np.real_if_close(np.multiply(np.conj(ssf), ssf)))
+
         #note: we are plotting the real part, since the SSF should be real.
 
         fraction, orientation, colormap = cb_options
         c = ax.scatter(KX/scale, KY/scale, c=ssf, cmap=colormap, edgecolors="none",zorder=0)
         cbar = fig.colorbar(c, fraction=fraction, orientation=orientation)
-        cbar.set_label(r'$\sqrt{s_\mathbf{k}} $',rotation=0,labelpad=10)
+        cbar.set_label(r'$\sqrt{|s_\mathbf{k}|^2}$',rotation=0,labelpad=10)
 
         # ticks = np.linspace(0,1,4+1)
         # cbar.set_ticks(ticks)
@@ -224,7 +255,7 @@ class MonteCarloOutput:
             radius=self.DefectLengthScale*2, fill=True, alpha=0.1, linewidth=1.5,color='black')
             ax.add_patch(defe)
 
-        plt.title(f'$J^\tau$ = {self.JTau:.2f}, $J^Q$ = {self.JQuad:.2f}, $J^O$ = {self.JOcto:.2f}, $J^B$ = {self.JB:.2f}')
+        plt.title(r'$J^{\tau}$' + f' = {self.JTau:.6f}, $J^Q$ = {self.JQuad:.6f}, $J^O$ = {self.JOcto:.6f}, $J^B$ = {self.JB:.6f}')
 
         if self.Dimensions==2:
             if self.WhichLattice == 0:
