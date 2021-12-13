@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as ptch
 from itertools import product
 
-
 def AddBZ(ax, scale: float, usetex):
     '''
     Adds the first, second, and sqrt(3) x sqrt(3) Brillouin zones to the reciprocal
@@ -40,7 +39,7 @@ def AddBZ(ax, scale: float, usetex):
     ticks = np.linspace(-1,1,4+1)
     ax.set_xticks(ticks)
     ax.set_xticklabels([f'${val:.1f}$' for val in ticks],usetex=usetex)
-    ax.set_yticklabels([f'${val:.1f}$' for val in ticks],usetex=usetex)
+    # ax.set_yticklabels([f'${val:.1f}$' for val in ticks],usetex=usetex)
 
     return ax
 
@@ -389,7 +388,7 @@ class FreeEnergyDerivatives:
         # axes = [ax1, ax2, ax1.twinx(), ax2.twinx()]
 
         for function, ax, color in zip(functions, axes, self.Colors):
-            print(function, ax, color)
+            # print(function, ax, color)
             ax.scatter(
                 self.XList,
                 function,
