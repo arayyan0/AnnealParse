@@ -16,7 +16,6 @@ spinstuff = MonteCarloOutput(input_data_filename)
 
 ##---------------------------------------------------------------Return MC energy
 print(spinstuff.MCEnergyPerSite)
-
 ##----------------------------------------------------Plot 3D spin configuration
 # fig = spinstuff.Plot3D()
 # plt.savefig(f'3d_spins_{output_data_filename}.pdf')
