@@ -58,121 +58,139 @@ def ToJKGGp(paramsl):
     return (rot @ vec).tolist()
 
 if __name__ == '__main__':
-    which = f'12.08.2021_jbNZ_pd'
+    which = f'12.13.2021_crossingCompassPhase'
     ########------------model-sepcific parameters------------########
     paramslabel    = [      't',     'p',   'jb' , 'h']
     paramsTeXlabel = [r'\theta', r'\phi', r'J_B' ,r'h']
     isangle = [True,True,False,False]
+    clusters = [[1, x, 1, 1, 1] for x in [2,0]]
     ########-------------------------------------------------########
-    for number in range(0,7+1):
-        for v in range(1,1+1):
-            run = f'{number}'
-            data_folder = f'out/{which}/jobrun_{run}/v_{v}/'
-            print(data_folder)
-            plot_folder = data_folder + f'plots/'
-            if not os.path.exists(plot_folder):
-                os.makedirs(plot_folder)
+    for number in range(1,1+1):
+        cluster_sweeps = []
+        for lat, s, l1, l2, l3 in clusters:
+            for v in range(1,1+1):
+                run = f'{number}'
+                data_folder = f'out/{which}/jobrun_{run}/lat_{lat}_s_{s}_l1_{l1}_l2_{l2}_l3_{l3}/v_{v}/'
+                print(data_folder)
+                plot_folder = data_folder + f'plots/'
+                if not os.path.exists(plot_folder):
+                    os.makedirs(plot_folder)
 
-            file_lst = sorted(glob.glob(data_folder+'*.out'))
+                file_lst = sorted(glob.glob(data_folder+'*.out'))
 
-            params = []
-            JKGGPparams = []
-            elst = []
-            for file in file_lst:
-                split_file = file.replace('/','_').split('_')
-                ########------------model-sepcific parameters------------########
-                paramsl = list(map(float, [split_file[-8],split_file[-6],split_file[-4],split_file[-2]]))
-                params.append(paramsl)
-                # print(paramsl)
-                JKGGPparams.append(ToJKGGp(paramsl))
-                # print(ToJKGGp(paramsl))
-                s = ''
-                for k in range(len(paramslabel)):
-                    s = s + paramslabel[k] + '_' + f'{paramsl[k]:.6f}_'
-                ########-------------------------------------------------########
-                spinstuff = MonteCarloOutput(file)
-                elst.append(spinstuff.MCEnergyPerSite)
+                params = []
+                JKGGPparams = []
+                elst = []
+                for file in file_lst:
+                    split_file = file.replace('/','_').split('_')
+                    ########------------model-sepcific parameters------------########
+                    paramsl = list(map(float, [split_file[-8],split_file[-6],split_file[-4],split_file[-2]]))
+                    params.append(paramsl)
+                    # print(paramsl)
+                    JKGGPparams.append(ToJKGGp(paramsl))
+                    # print(ToJKGGp(paramsl))
+                    s = ''
+                    for k in range(len(paramslabel)):
+                        s = s + paramslabel[k] + '_' + f'{paramsl[k]:.6f}_'
+                    ########-------------------------------------------------########
+                    spinstuff = MonteCarloOutput(file)
+                    elst.append(spinstuff.MCEnergyPerSite)
 
-                PlotSpins(spinstuff,plot_folder,s)
-                PlotSSF(spinstuff,plot_folder,s)
-            params = np.array(params)
-            earr = np.array(elst)
-            JKGGPparams = np.array(JKGGPparams)
+                    # PlotSpins(spinstuff,plot_folder,s)
+                    # PlotSSF(spinstuff,plot_folder,s)
+                params = np.array(params)
+                earr = np.array(elst)
+                JKGGPparams = np.array(JKGGPparams)
 
-            #identify swept parameters
-            which_params = is_not_unique(params)
-            print(which_params)
+                # print(params)
+                # print(earr)
+                # print(JKGGPparams)
 
-            # sort data
-            ########--------------model-sepcific sorting----------------########
-            which_parameter_to_sort = 0
-            idx = np.argsort(params[:, which_parameter_to_sort])
-            params = params[idx,:]
-            earr = earr[idx]
-            JKGGPparams = JKGGPparams[idx]
-            ########----------------------------------------------------########
+                #identify swept parameters
+                which_params = is_not_unique(params)
+                # print(which_params)
+                #
+                # sort data
+                ########--------------model-sepcific sorting----------------########
+                which_parameter_to_sort = 1
+                idx = np.argsort(params[:, which_parameter_to_sort])
+                params = params[idx,:]
+                earr = earr[idx]
+                JKGGPparams = JKGGPparams[idx]
+                ########----------------------------------------------------########
 
-            # put params and energy in a pandas dataframe. this will be especially
-            # useful for multiple swept parameters, but recheck the code to see
-            # if things are running properly
-            print(params.shape, earr.shape)
-            data = np.column_stack((params,earr))
-            df = pd.DataFrame(data=data, index=None, columns=paramslabel+['energy'])
+                # put params and energy in a pandas dataframe. this will be especially
+                # useful for multiple swept parameters, but recheck the code to see
+                # if things are running properly
+                # print(params.shape, earr.shape)
+                data = np.column_stack((params,earr))
+                df = pd.DataFrame(data=data, index=None, columns=paramslabel+['energy'])
+                # print(df)
 
-            # for each swept parameter
-            for i, boolean in enumerate(which_params):
-                # if constant array, we wont be plotting the energy over it
-                if ~boolean:
-                    continue
-
-                # figure out the factor that multiplies the parameter
-                if isangle[i]:
-                    xlabel = paramsTeXlabel[i] + r'/\pi'
-                    factor = pi
-                else:
-                    xlabel = paramsTeXlabel[i]
-                    factor = 1
-
-                # compute derivatives and reorder colors
-                derivs = FreeEnergyDerivatives(df[paramslabel[i]], df['energy'], factor)
-                colors, color_order = derivs.Colors, [0,2,1]
-                colors = [colors[color_index] for color_index in color_order]
-
-                # figure out the y-labels
-                ylabel = [
-                r"$\frac{E_0}{N}$",
-                r"$-\frac{1}{N}\frac{\mathrm{d}^2E_0}{\mathrm{d}%s^2}\quad$" % (paramsTeXlabel[i]),
-                r"$-\frac{1}{N}\frac{\mathrm{d}E_0}{\mathrm{d}%s}$" % (paramsTeXlabel[i]),
-                ]
-
-                # plot the derivs with proper labels
-                fig = derivs.PlotSweep()
-                for j, [ax, color] in enumerate(zip(fig.axes, colors)):
-                    ax.set_ylabel(     ylabel[j], rotation = "horizontal",
-                                     fontsize=12,             labelpad=20,
-                                     color=color)
-                fig.axes[1].set_xlabel(r"$%s$ " % xlabel )
-                fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-
-                # save and show the plot after creating filename
-                s = ''
-                for k, boolean in enumerate(which_params):
+                # for each swept parameter
+                for i, boolean in enumerate(which_params):
+                    # if constant array, we wont be plotting the energy over it
                     if ~boolean:
-                        s = s + paramslabel[k] + '_' + f'{df[paramslabel[k]][0]:.6f}_'
-                # print(s)
-                plt.savefig(plot_folder + 'energy_' + s + '.pdf')
-                plt.show()
-                plt.close()
+                        # print(f'{paramslabel[i]} is not swept over')
+                        continue
 
-                fig, ax = plt.subplots()
-                colors = ['violet','green','red','blue']
-                labels = ['$J$', '$K$', '$\Gamma$', r"$\Gamma'$"]
-                linestyles = ['-','--','-.',':']
-                for ii, [color,label,linestyle] in enumerate(zip(colors,labels,linestyles)):
-                    ax.plot(df[paramslabel[i]],JKGGPparams[:,ii],c=color,label=label,linestyle=linestyle)
-                ax.set_xlabel(r"$%s$ " % xlabel )
-                ax.axhline(color='gray',ls="--")
-                plt.legend()
-                plt.savefig(plot_folder + 'JKGGp_' + s + '.pdf')
-                plt.show()
-                plt.close()
+                    # figure out the factor that multiplies the parameter
+                    if isangle[i]:
+                        xlabel = paramsTeXlabel[i] + r'/\pi'
+                        factor = pi
+                    else:
+                        xlabel = paramsTeXlabel[i]
+                        factor = 1
+
+                    # compute derivatives and reorder colors
+                    derivs = FreeEnergyDerivatives(df[paramslabel[i]], df['energy'], factor)
+                    colors, color_order = derivs.Colors, [0,2,1]
+                    colors = [colors[color_index] for color_index in color_order]
+
+                    # figure out the y-labels
+                    ylabel = [
+                    r"$\frac{E_0}{N}$",
+                    r"$-\frac{1}{N}\frac{\mathrm{d}^2E_0}{\mathrm{d}%s^2}\quad$" % (paramsTeXlabel[i]),
+                    r"$-\frac{1}{N}\frac{\mathrm{d}E_0}{\mathrm{d}%s}$" % (paramsTeXlabel[i]),
+                    ]
+
+                    # plot the derivs with proper labels
+                    fig = derivs.PlotSweep()
+                    for j, [ax, color] in enumerate(zip(fig.axes, colors)):
+                        ax.set_ylabel(     ylabel[j], rotation = "horizontal",
+                                         fontsize=12,             labelpad=20,
+                                         color=color)
+                    fig.axes[1].set_xlabel(r"$%s$ " % xlabel )
+                    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+
+                    # save and show the plot after creating filename
+                    s = ''
+                    for k, boolean in enumerate(which_params):
+                        if ~boolean:
+                            s = s + paramslabel[k] + '_' + f'{df[paramslabel[k]][0]:.6f}_'
+                    # print(s)
+                    # plt.savefig(plot_folder + 'energy_' + s + '.pdf')
+                    # plt.show()
+                    plt.close()
+
+                    fig, ax = plt.subplots()
+                    colors = ['violet','green','red','blue']
+                    labels = ['$J$', '$K$', '$\Gamma$', r"$\Gamma'$"]
+                    linestyles = ['-','--','-.',':']
+                    for ii, [color,label,linestyle] in enumerate(zip(colors,labels,linestyles)):
+                        ax.plot(df[paramslabel[i]],JKGGPparams[:,ii],c=color,label=label,linestyle=linestyle)
+                    ax.set_xlabel(r"$%s$ " % xlabel )
+                    ax.axhline(color='gray',ls="--")
+                    plt.legend()
+                    # plt.savefig(plot_folder + 'JKGGp_' + s + '.pdf')
+                    # plt.show()
+                    plt.close()
+            cluster_sweeps.append(earr)
+        fig, ax = plt.subplots()
+        colors = ['r','b']
+        labels = ['6-site','2-site']
+        for i, [cluster_sweep,color,label] in enumerate(zip(cluster_sweeps,colors,labels)):
+            ax.plot(df['p'], cluster_sweep, color = color, label = label)
+        plt.legend()
+        plt.show()
+        plt.close()
