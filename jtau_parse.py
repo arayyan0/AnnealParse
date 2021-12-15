@@ -5,6 +5,7 @@ from common import FreeEnergyDerivatives, pi
 import os
 import glob as glob
 import pandas as pd
+import sys
 #
 def PlotSpins(spinstuff,plot_folder,s):
     plane = -1 #-1 for Az plane with most moments, >=0 otherwise
@@ -50,22 +51,26 @@ def ToJKGGp(paramsl):
                     np.sin(t*pi)*np.sin(p*pi),
     ])
     rot = np.array([
-                    [-1/2,0,0,1],
-                    [1/2,np.sqrt(2),0,0],
-                    [-1/2,0,-1,1],
-                    [-1,1/np.sqrt(2),-1,1]
+                    [0,2/3,4/3,-4/3],
+                    [0,np.sqrt(2)/3,-np.sqrt(2)/3,np.sqrt(2)/3],
+                    [1,0,-1,0],
+                    [1,1/3,2/3,4/3]
     ])
-    return (rot @ vec).tolist()
+    invrot = np.linalg.inv(rot)
+    return (invrot @ vec).tolist()
 
 if __name__ == '__main__':
-    which = f'12.13.2021_crossingCompassPhase'
+    which = f'12.14.2021_jb0_pd_fine'
     ########------------model-sepcific parameters------------########
     paramslabel    = [      't',     'p',   'jb' , 'h']
     paramsTeXlabel = [r'\theta', r'\phi', r'J_B' ,r'h']
     isangle = [True,True,False,False]
-    clusters = [[1, x, 1, 1, 1] for x in [2,0]]
+    clusters = [[1, x, 1, 1, 1] for x in [2]]
+    cluster_colors = ['r']
+    cluster_labels = ['6-site']
     ########-------------------------------------------------########
-    for number in range(1,1+1):
+    run = int(sys.argv[1])
+    for number in range(run,run+1):
         cluster_sweeps = []
         for lat, s, l1, l2, l3 in clusters:
             for v in range(1,1+1):
@@ -96,8 +101,8 @@ if __name__ == '__main__':
                     spinstuff = MonteCarloOutput(file)
                     elst.append(spinstuff.MCEnergyPerSite)
 
-                    # PlotSpins(spinstuff,plot_folder,s)
-                    # PlotSSF(spinstuff,plot_folder,s)
+                    PlotSpins(spinstuff,plot_folder,s)
+                    PlotSSF(spinstuff,plot_folder,s)
                 params = np.array(params)
                 earr = np.array(elst)
                 JKGGPparams = np.array(JKGGPparams)
@@ -111,8 +116,7 @@ if __name__ == '__main__':
                 # print(which_params)
                 #
                 # sort data
-                ########--------------model-sepcific sorting----------------########
-                which_parameter_to_sort = 1
+                which_parameter_to_sort = 0
                 idx = np.argsort(params[:, which_parameter_to_sort])
                 params = params[idx,:]
                 earr = earr[idx]
@@ -144,6 +148,7 @@ if __name__ == '__main__':
 
                     # compute derivatives and reorder colors
                     derivs = FreeEnergyDerivatives(df[paramslabel[i]], df['energy'], factor)
+                    ########--------------model-sepcific sorting----------------########
                     colors, color_order = derivs.Colors, [0,2,1]
                     colors = [colors[color_index] for color_index in color_order]
 
@@ -169,8 +174,8 @@ if __name__ == '__main__':
                         if ~boolean:
                             s = s + paramslabel[k] + '_' + f'{df[paramslabel[k]][0]:.6f}_'
                     # print(s)
-                    # plt.savefig(plot_folder + 'energy_' + s + '.pdf')
-                    # plt.show()
+                    plt.savefig(plot_folder + 'energy_' + s + '.pdf')
+                    plt.show()
                     plt.close()
 
                     fig, ax = plt.subplots()
@@ -182,15 +187,13 @@ if __name__ == '__main__':
                     ax.set_xlabel(r"$%s$ " % xlabel )
                     ax.axhline(color='gray',ls="--")
                     plt.legend()
-                    # plt.savefig(plot_folder + 'JKGGp_' + s + '.pdf')
-                    # plt.show()
+                    plt.savefig(plot_folder + 'JKGGp_' + s + '.pdf')
+                    plt.show()
                     plt.close()
-            cluster_sweeps.append(earr)
-        fig, ax = plt.subplots()
-        colors = ['r','b']
-        labels = ['6-site','2-site']
-        for i, [cluster_sweep,color,label] in enumerate(zip(cluster_sweeps,colors,labels)):
-            ax.plot(df['p'], cluster_sweep, color = color, label = label)
-        plt.legend()
-        plt.show()
-        plt.close()
+            # cluster_sweeps.append(earr)
+        # fig, ax = plt.subplots()
+        # for i, [sweep,color,label] in enumerate(zip(cluster_sweeps,cluster_colors,cluster_labels)):
+        #     ax.plot(df['p'], sweep, color = color, label = label)
+        # plt.legend()
+        # plt.show()
+        # plt.close()
