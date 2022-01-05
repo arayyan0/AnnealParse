@@ -2,105 +2,110 @@ import numpy as np
 import matplotlib.colors as clr
 import matplotlib.patches as ptch
 import matplotlib.pyplot as plt
+import re
 
 from common import pi, PlotLineBetweenTwoPoints,sqrt3,a1,a2,FindReciprocalVectors,\
                    KMeshForPlotting,gen_eps
 
 class MonteCarloOutput:
     '''
-    Parses Monte Carlo output for spins and their locations
+    Parses Monte Carlo output for cluster information, simulation information,
+    spin orientation matrix, energy, spin moments, and spin locations
     '''
     def __init__(self, filename):
         self.Filename = filename
-
         with open(self.Filename, 'r') as f:
-            file_data = f.readlines()
+            self.FileData = f.readlines()
+        kw_list = [
+              "Which lattice?",
+              "Linear dimensions",
+              "Translation vectors",
+              "Sublattice vectors",
+              "Number of Deterministic sweeps",
+              "Spin basis",
+              "Energy per site",
+              "Spin configuration"
+        ]
+        kw_index_list  = self.ExtractQuantities(kw_list)
 
-        #extract which lattice: 0 for tri, 1 for hc, 2 for FCC
-        self.WhichLattice = int(file_data[2])
+        kw_dict = dict(zip(kw_list, kw_index_list))
 
+        self.WhichLattice = int(self.FileData[kw_dict["Which lattice?"]])
+        self.L1, self.L2, self.L3 = [int(x) for x in self.FileData[kw_dict["Linear dimensions"]].split()]
+        self.T1, self.T2, self.T3 = np.array(list(
+            map(np.double, [x.split() for x in self.FileData[kw_dict["Translation vectors"]:kw_dict["Translation vectors"]+3]])
+        )).transpose()
+        self.SublatticeVectors = np.array(list(
+            map(np.double, [x.split() for x in self.FileData[kw_dict["Sublattice vectors"]:kw_dict["Sublattice vectors"]+3]])
+        )).transpose()
+        self.TotNumSublattices = self.SublatticeVectors.shape[0]
+        self.NumSites = self.L1*self.L2*self.L3*self.TotNumSublattices
+        self.DetSweeps = int(self.FileData[kw_dict["Number of Deterministic sweeps"]])
+        self.ChangeBasis = np.array(list(map(np.double, [x.split() for x in self.FileData[kw_dict["Spin basis"]:kw_dict["Spin basis"]+3]])))
+        self.MCEnergyPerSite = np.double(self.FileData[kw_dict["Energy per site"]])
+
+        self.SpinConfigIndices = np.array(list(map(np.double, [x.split() for x in self.FileData[kw_dict["Spin configuration"]:kw_dict["Spin configuration"]+self.NumSites]])))[:,:4]
+        self.SpinPositions = np.empty((self.NumSites, 3), dtype = np.double)
+        for i, a in enumerate(self.SpinConfigIndices):
+            self.SpinPositions[i] = a[0]*self.T1+a[1]*self.T2+a[2]*self.T3+self.SublatticeVectors[int(a[3])]
+
+        #extract spins (in pseudospin and mind basis)
+        self.SpinConfigSpinBasis = np.array(list(
+            map(np.double, [x.split() for x in self.FileData[kw_dict["Spin configuration"]:kw_dict["Spin configuration"]+self.NumSites]])
+        ))[:,4:]
+        self.SpinConfigMindBasis = (self.ChangeBasis @ self.SpinConfigSpinBasis.T).T
+        self.LayerPositions, self.LayerSpins, self.LayerNumber = self.SortPlanes()
+
+        # extract which lattice: 0 for tri, 1 for hc, 2 for FCC
         if ((self.WhichLattice == 0) or (self.WhichLattice == 1)):
             self.Dimensions=2
         elif self.WhichLattice == 2:
             self.Dimensions=3
 
-        #extract linear dimensions
-        self.L1, self.L2, self.L3 = [int(x) for x in file_data[4].split()]
+        ##############---
+        ##############---hardcoding which model and its parameters here.
+        ##############---
+        # self.WhichModel = "kga"
+        self.WhichModel = "multipolar"
+        kw_ham_list = self.HamiltonianKeywords()
+        kw_ham_index_list  = self.ExtractQuantities(kw_ham_list)
+        kw_ham_dict = dict(zip(kw_ham_list, kw_ham_index_list))
+        if self.WhichModel == "multipolar":
+            #extract the jtau/jb interactions
+            self.JTau, self.JB = np.array(list(map( np.double, self.FileData[kw_ham_dict["bond-dep"]].replace("/"," ").replace("\n","").split(" ") )))
+            #extract the quad/octo interactions
+            self.JQuad, self.JOcto = np.array(list(map( np.double, self.FileData[kw_ham_dict["bond-indep"]].replace("/"," ").replace("\n","").split(" ") )))
+            #extract the defect properties
+            self.DefectQuad, self.DefectOcto, self.DefectLengthScale, self.NumDefects = np.array([0,0,0,0])
+        elif self.WhichModel == "kga":
+            self.Kx, self.Ky, self.Kz = np.array(list(map( np.double, self.FileData[kw_ham_dict["Kx Ky Kz"]].replace("/"," ").replace("\n","").split(" ") )))
 
-        #extract conventional cell vectors
-        self.T1, self.T2, self.T3 = np.array(list(map(np.double, [x.split() for x in file_data[6:6+3]]))).transpose()
+    def ExtractQuantities(self, kw_list):
+        kw_index_list = []
 
-        #extract sublattice vectors
-        self.SublatticeVectors = np.array(list(map(np.double, [x.split() for x in file_data[10:10+3]]))).transpose()
-        self.TotNumSublattices = self.SublatticeVectors.shape[0]
-        self.NumSites = self.L1*self.L2*self.L3*self.TotNumSublattices
+        #extract which lattice: 0 for tri, 1 for hc, 2 for FCC
+        for kw in kw_list:
+            for line_number, file_line in enumerate(self.FileData):
+                z = re.match(kw, file_line)
+                if z:
+                    kw_index_list.append(line_number+1)
+        return kw_index_list
 
-        #extract the deterministic sweeps: if 0, then it's finite T. else, it's SA
-        self.DetSweeps = [int(x) for x in file_data[20].split()]
-
-        #WARNING: FROM HERE ON, THE NUMBERS ONLY WORK WITH MULTIPOLE HAMILTONIAN (w/o defects).
-        #         NEED A CLEVER WAY TO PARSE WHEN THERE ARE MULTIPLE HAMILTONIA
-        #         ALTERNATIVELY, PUT C++ OUTPUT INTO HD5 FILE. WILL DO THIS WHEN
-        #         I DO OTHER HAMILTONIANS
-
-        #extract the pseudospin to mind basis transformation
-        self.ChangeBasis = np.array(list(map(np.double, [x.split() for x in file_data[31:31+3]])))
-
-        #extract the jtau/jb interactions
-        self.JTau, self.JB = np.array(list(map( np.double, file_data[23].replace("/"," ").replace("\n","").split(" ") )))
-
-        #extract the quad/octo interactions
-        self.JQuad, self.JOcto = np.array(list(map( np.double, file_data[25].replace("/"," ").replace("\n","").split(" ") )))
-
-        #extract the defect properties
-        self.DefectQuad, self.DefectOcto, self.DefectLengthScale, self.NumDefects = np.array([0,0,0,0])
-
-        #extract the energy
-        self.MCEnergyPerSite = np.double(file_data[36])
-
-        #extract spin positions (in mind basis)
-        self.SpinConfigIndices = np.array(list(map(np.double, [x.split() for x in file_data[38:38+self.NumSites]])))[:,:4]
-
-        self.SpinPositions = np.empty((self.NumSites, 3), dtype = np.double)
-        for i, a in enumerate(self.SpinConfigIndices):
-            self.SpinPositions[i] = a[0]*self.T1+a[1]*self.T2+a[2]*self.T3+self.SublatticeVectors[int(a[3])]
-        # print(self.SpinPositions)
-
-        #extract spins (in pseudospin and mind basis)
-        self.SpinConfigSpinBasis = np.array(list(map(np.double, [x.split() for x in file_data[38:38+self.NumSites]])))[:,4:]
-
-        spins = self.SpinConfigSpinBasis
-        tr_spins = self.SpinConfigSpinBasis
-        # #####################
-        # #####################
-        # ##----------plotting the tau pseudospins
-        # m = self.CalculateTauPseudospinMatrix()/np.sqrt(3/2)
-        # print(m)
-        # spins = np.einsum('ij,lj->li', m, tr_spins)
-        # #####################
-        # #####################
-        # for i in range(tr_spins.shape[0]):
-        #     print(spins[i,:])
-        #     print(tr_spins[i,:])
-        #     print(".....")
-
-        # self.SpinConfigSpinBasis = spins
-
-
-        self.SpinConfigMindBasis = (self.ChangeBasis @ self.SpinConfigSpinBasis.T).T
-
-        self.LayerPositions, self.LayerSpins, self.LayerNumber = self.SortPlanes()
-    #
-    # def CalculateTauPseudospinMatrix(self):
-    #     angles = np.array([2*np.pi/3, 4*np.pi/3, 0])
-    #
-    #     m = np.array([
-    #                     np.sin(angles),
-    #                     np.zeros(3),
-    #                     np.cos(angles)
-    #     ]).T
-    #
-    #     return m
+    def HamiltonianKeywords(self):
+        if self.WhichModel == "multipolar":
+            kw_list = [
+                "bond-dep",
+                "bond-indep"
+            ]
+        elif self.WhichModel == "kga":
+            kw_list = [
+                "Kx Ky Kz",
+                "Gx Gy Gz",
+                "Gp",
+                "J1"
+            ]
+        kw_list += ["hMag","hDir"]
+        return kw_list
 
     def SortPlanes(self):
         z_planes  = np.unique(self.SpinPositions[:,2])
@@ -250,12 +255,13 @@ class MonteCarloOutput:
         elif tickaxis== 'y':
             cb.ax.set_yticklabels([f'${val:.0f}$' for val in ticks],usetex=usetex)
 
-        if (self.NumDefects == 1) and ((self.DefectQuad!=0) or (self.DefectOcto!=0)):
-            defe = ptch.Circle(3*self.L1/6 *self.T1 + 3*self.L2/6 *self.T2 +(self.T1+self.T2)/3,
-            radius=self.DefectLengthScale*2, fill=True, alpha=0.1, linewidth=1.5,color='black')
-            ax.add_patch(defe)
+        if self.WhichModel == "multipolar":
+            if (self.NumDefects == 1) and ((self.DefectQuad!=0) or (self.DefectOcto!=0)):
+                defe = ptch.Circle(3*self.L1/6 *self.T1 + 3*self.L2/6 *self.T2 +(self.T1+self.T2)/3,
+                radius=self.DefectLengthScale*2, fill=True, alpha=0.1, linewidth=1.5,color='black')
+                ax.add_patch(defe)
 
-        plt.title(r'$J^{\tau}$' + f' = {self.JTau:.6f}, $J^Q$ = {self.JQuad:.6f}, $J^O$ = {self.JOcto:.6f}, $J^B$ = {self.JB:.6f}')
+            plt.title(r'$J^{\tau}$' + f' = {self.JTau:.6f}, $J^Q$ = {self.JQuad:.6f}, $J^O$ = {self.JOcto:.6f}, $J^B$ = {self.JB:.6f}')
 
         if self.Dimensions==2:
             if self.WhichLattice == 0:
@@ -286,13 +292,15 @@ class MonteCarloOutput:
             PlotLineBetweenTwoPoints(ax, self.T2, self.T1+self.T2)
         return fig
 
+
 class MuonSimulation(MonteCarloOutput):
 
     def __init__(self, filename):
         super().__init__(filename)
-        self.FilterPositions();
-        self.GenerateStoppingSites();
-        self.CalculateDipolarFields();
+        if self.WhichModel == 'multipole':
+            self.FilterPositions();
+            self.GenerateStoppingSites();
+            self.CalculateDipolarFields();
 
     def FilterPositions(self):
         tuningofradius=1
