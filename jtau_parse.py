@@ -60,17 +60,78 @@ def ToJKGGp(paramsl):
     return (invrot @ vec).tolist()
 
 if __name__ == '__main__':
-    which = f'12.14.2021_jb0_pd_fine'
+    which = f'12.16.2021_jbn0_luc_phiscan'
     ########------------model-sepcific parameters------------########
     paramslabel    = [      't',     'p',   'jb' , 'h']
     paramsTeXlabel = [r'\theta', r'\phi', r'J_B' ,r'h']
     isangle = [True,True,False,False]
-    clusters = [[1, x, 1, 1, 1] for x in [2]]
-    cluster_colors = ['r']
-    cluster_labels = ['6-site']
+
+    #run = 1-7
+    clusters = [
+                [1,1,3,2,1],
+                [1,1,4,1,1],
+                [1,0,1,6,1],
+                [1,1,1,2,1],
+                [1,2,1,1,1],
+                [1,1,1,1,1]
+               ]
+    cluster_colors = ['r','g','b','black','grey','purple']
+    cluster_labels = ['24',
+                      '16',
+                      '12',
+                      '8',
+                      '6',
+                      '4'
+                     ]
+
+
+    # run = 5
+    # clusters = [ [1,1,7,2,1], [1,1,5,2,1], [1,1,3,2,1] ]
+    # cluster_colors = ['r','g','b']
+    # cluster_labels = ['56',
+    #                   '40',
+    #                   '24',
+    #                  ]
+
+    # run = 9
+    # clusters = [ [1,1,1,2,1] ]
+    # cluster_colors = ['r','g','b']
+    # cluster_labels = ['56',
+    #                   '40',
+    #                   '24',
+    #                  ]
+
+    # run = 10
+    # clusters = [ [1,1,1,2,1], [1,1,3,2,1], [1,1,5,2,1] ]
+    # cluster_colors = ['r','g','b']
+    # cluster_labels = ['8',
+    #                   '24',
+    #                   '40',
+    #                  ]
+
+    # run = 6
+    # clusters = [ [1,1,3,2,1], [1,1,4,1,1], [1,1,1,2,1] ]
+    # cluster_colors = ['r','g','b']
+    # cluster_labels = ['24',
+    #                   '16',
+    #                   '8',
+    #                  ]
+
+    # the 8 M/2 clusters
+    # run =
+    # clusters = [ [1,1,n,2,1] for n in range(8,0,-1) ]
+    # cluster_colors = ['r','g','b','black','grey','purple','pink','cyan',]
+    # cluster_labels = ['8',
+    #                   '7',
+    #                   '6',
+    #                   '5',
+    #                   '4',
+    #                   '3',
+    #                   '2',
+    #                   '1'
+    #                  ]
     ########-------------------------------------------------########
-    run = int(sys.argv[1])
-    for number in range(run,run+1):
+    for number in range(1,4+1):
         cluster_sweeps = []
         for lat, s, l1, l2, l3 in clusters:
             for v in range(1,1+1):
@@ -116,7 +177,7 @@ if __name__ == '__main__':
                 # print(which_params)
                 #
                 # sort data
-                which_parameter_to_sort = 0
+                which_parameter_to_sort = 1
                 idx = np.argsort(params[:, which_parameter_to_sort])
                 params = params[idx,:]
                 earr = earr[idx]
@@ -175,7 +236,7 @@ if __name__ == '__main__':
                             s = s + paramslabel[k] + '_' + f'{df[paramslabel[k]][0]:.6f}_'
                     # print(s)
                     plt.savefig(plot_folder + 'energy_' + s + '.pdf')
-                    plt.show()
+                    # plt.show()
                     plt.close()
 
                     fig, ax = plt.subplots()
@@ -184,16 +245,18 @@ if __name__ == '__main__':
                     linestyles = ['-','--','-.',':']
                     for ii, [color,label,linestyle] in enumerate(zip(colors,labels,linestyles)):
                         ax.plot(df[paramslabel[i]],JKGGPparams[:,ii],c=color,label=label,linestyle=linestyle)
+                    ax.plot(df[paramslabel[i]],JKGGPparams[:,2]+2*JKGGPparams[:,3],c='grey',label=r"$\Gamma+2\Gamma'$")
                     ax.set_xlabel(r"$%s$ " % xlabel )
                     ax.axhline(color='gray',ls="--")
                     plt.legend()
                     plt.savefig(plot_folder + 'JKGGp_' + s + '.pdf')
-                    plt.show()
+                    # plt.show()
                     plt.close()
-            # cluster_sweeps.append(earr)
-        # fig, ax = plt.subplots()
-        # for i, [sweep,color,label] in enumerate(zip(cluster_sweeps,cluster_colors,cluster_labels)):
-        #     ax.plot(df['p'], sweep, color = color, label = label)
-        # plt.legend()
-        # plt.show()
-        # plt.close()
+            cluster_sweeps.append(earr)
+        fig, ax = plt.subplots()
+        for i, [sweep,color,label] in enumerate(zip(cluster_sweeps,cluster_colors,cluster_labels)):
+            ax.plot(df['p'], sweep, color = color, label = label, marker='x')
+        plt.legend()
+        plt.savefig(f'out/{which}/jobrun_{run}/LUCcomparison.pdf')
+        plt.show()
+        plt.close()
