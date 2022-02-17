@@ -10,7 +10,7 @@ import sys
 def PlotSpins(spinstuff,plot_folder,s):
     plane = -1 #-1 for Az plane with most moments, >=0 otherwise
     if spinstuff.NumSites > 500:
-        quiver_options = [11*35, 2.5, 2]       #[scale, minlength, headwidth]
+        quiver_options = [100*35, 2.5, 2]       #[scale, minlength, headwidth]
     else:
         quiver_options = [0.5*35, 2.5, 2]
     cm = 'seismic'
@@ -60,78 +60,33 @@ def ToJKGGp(paramsl):
     return (invrot @ vec).tolist()
 
 if __name__ == '__main__':
-    which = f'12.16.2021_jbn0_luc_phiscan'
+    which = f'02.4.2022_jb_scan'
     ########------------model-sepcific parameters------------########
     paramslabel    = [      't',     'p',   'jb' , 'h']
     paramsTeXlabel = [r'\theta', r'\phi', r'J_B' ,r'h']
     isangle = [True,True,False,False]
 
-    #run = 1-7
+               #region 5
     clusters = [
-                [1,1,3,2,1],
-                [1,1,4,1,1],
-                [1,0,1,6,1],
-                [1,1,1,2,1],
-                [1,2,1,1,1],
-                [1,1,1,1,1]
+                [1,2,6,6,1]
                ]
-    cluster_colors = ['r','g','b','black','grey','purple']
-    cluster_labels = ['24',
-                      '16',
-                      '12',
-                      '8',
-                      '6',
-                      '4'
-                     ]
 
-
-    # run = 5
-    # clusters = [ [1,1,7,2,1], [1,1,5,2,1], [1,1,3,2,1] ]
-    # cluster_colors = ['r','g','b']
-    # cluster_labels = ['56',
-    #                   '40',
-    #                   '24',
+    # cluster_colors = ['r','g', 'b', 'cyan', 'magenta']
+    # cluster_labels = [
+    #                   '12 K/2',
     #                  ]
 
-    # run = 9
-    # clusters = [ [1,1,1,2,1] ]
-    # cluster_colors = ['r','g','b']
-    # cluster_labels = ['56',
-    #                   '40',
-    #                   '24',
-    #                  ]
-
-    # run = 10
-    # clusters = [ [1,1,1,2,1], [1,1,3,2,1], [1,1,5,2,1] ]
-    # cluster_colors = ['r','g','b']
-    # cluster_labels = ['8',
-    #                   '24',
-    #                   '40',
-    #                  ]
-
-    # run = 6
-    # clusters = [ [1,1,3,2,1], [1,1,4,1,1], [1,1,1,2,1] ]
-    # cluster_colors = ['r','g','b']
-    # cluster_labels = ['24',
-    #                   '16',
-    #                   '8',
-    #                  ]
-
-    # the 8 M/2 clusters
-    # run =
-    # clusters = [ [1,1,n,2,1] for n in range(8,0,-1) ]
-    # cluster_colors = ['r','g','b','black','grey','purple','pink','cyan',]
-    # cluster_labels = ['8',
-    #                   '7',
-    #                   '6',
-    #                   '5',
-    #                   '4',
-    #                   '3',
-    #                   '2',
-    #                   '1'
-    #                  ]
+    which_param_swept = 'jb'
+    if which_param_swept == 'p':
+        nummm = 1
+    elif which_param_swept == 't':
+        nummm = 0
+    elif which_param_swept == 'jb':
+        nummm = 2
+    elif which_param_swept == 'h':
+        nummm = 3
     ########-------------------------------------------------########
-    for number in range(1,4+1):
+    for number in range(2,2+1):
         cluster_sweeps = []
         for lat, s, l1, l2, l3 in clusters:
             for v in range(1,1+1):
@@ -147,6 +102,8 @@ if __name__ == '__main__':
                 params = []
                 JKGGPparams = []
                 elst = []
+                op_FM = []
+                op_Neel = []
                 for file in file_lst:
                     split_file = file.replace('/','_').split('_')
                     ########------------model-sepcific parameters------------########
@@ -162,26 +119,34 @@ if __name__ == '__main__':
                     spinstuff = MonteCarloOutput(file)
                     elst.append(spinstuff.MCEnergyPerSite)
 
+                    op_FM.append(spinstuff.calculate_FM_OP())
+                    op_Neel.append(spinstuff.calculate_Neel_OP())
+
                     PlotSpins(spinstuff,plot_folder,s)
                     PlotSSF(spinstuff,plot_folder,s)
                 params = np.array(params)
                 earr = np.array(elst)
                 JKGGPparams = np.array(JKGGPparams)
+                op_FM = np.array(op_FM)
+                op_Neel = np.array(op_Neel)
 
                 # print(params)
                 # print(earr)
                 # print(JKGGPparams)
 
                 #identify swept parameters
+                # print(params)
                 which_params = is_not_unique(params)
                 # print(which_params)
                 #
                 # sort data
-                which_parameter_to_sort = 1
+                which_parameter_to_sort = nummm
                 idx = np.argsort(params[:, which_parameter_to_sort])
                 params = params[idx,:]
                 earr = earr[idx]
                 JKGGPparams = JKGGPparams[idx]
+                op_FM = op_FM[idx]
+                op_Neel = op_Neel[idx]
                 ########----------------------------------------------------########
 
                 # put params and energy in a pandas dataframe. this will be especially
@@ -239,6 +204,7 @@ if __name__ == '__main__':
                     # plt.show()
                     plt.close()
 
+                    #calculates true values of J,K,G,Gp
                     fig, ax = plt.subplots()
                     colors = ['violet','green','red','blue']
                     labels = ['$J$', '$K$', '$\Gamma$', r"$\Gamma'$"]
@@ -252,11 +218,33 @@ if __name__ == '__main__':
                     plt.savefig(plot_folder + 'JKGGp_' + s + '.pdf')
                     # plt.show()
                     plt.close()
+
+                    #calculates some basic order parameters: FM and Neel
+                    fig, ax = plt.subplots()
+                    colors = ['red','blue']
+                    labels = ['FM', "AFM"]
+                    y = [op_FM, op_Neel]
+                    for ii, [color,label] in enumerate(zip(colors,labels)):
+                        ax.scatter(df[paramslabel[i]],y[ii],
+                                        marker="o",
+                                        # clip_on=False,
+                                        s=20,
+                                        facecolors='none',
+                                        edgecolors=color,
+                                        linewidth=1.5,
+                                        label=label)
+                    ax.set_xlabel(r"$%s$ " % xlabel )
+                    # ax.axhline(color='gray',ls="--")
+                    plt.legend()
+                    plt.savefig(plot_folder + 'basicOP_' + s + '.pdf')
+                    # plt.show()
+                    plt.close()
+
             cluster_sweeps.append(earr)
-        fig, ax = plt.subplots()
-        for i, [sweep,color,label] in enumerate(zip(cluster_sweeps,cluster_colors,cluster_labels)):
-            ax.plot(df['p'], sweep, color = color, label = label, marker='x')
-        plt.legend()
-        plt.savefig(f'out/{which}/jobrun_{run}/LUCcomparison.pdf')
-        plt.show()
-        plt.close()
+        # fig, ax = plt.subplots()
+        # for i, [sweep,color,label] in enumerate(zip(cluster_sweeps,cluster_colors,cluster_labels)):
+        #     ax.plot(df[which_param_swept], sweep, color = color, label = label, marker='x')
+        # plt.legend()
+        # plt.savefig(f'out/{which}/jobrun_{run}/LUCcomparison.pdf')
+        # plt.show()
+        # plt.close()
