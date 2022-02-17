@@ -56,7 +56,6 @@ class MonteCarloOutput:
         self.SpinConfigMindBasis = (self.ChangeBasis @ self.SpinConfigSpinBasis.T).T
         self.LayerPositions, self.LayerSpins, self.LayerNumber = self.SortPlanes()
 
-        # extract which lattice: 0 for tri, 1 for hc, 2 for FCC
         if ((self.WhichLattice == 0) or (self.WhichLattice == 1)):
             self.Dimensions=2
         elif self.WhichLattice == 2:
@@ -75,15 +74,17 @@ class MonteCarloOutput:
             self.JTau, self.JB = np.array(list(map( np.double, self.FileData[kw_ham_dict["bond-dep"]].replace("/"," ").replace("\n","").split(" ") )))
             #extract the quad/octo interactions
             self.JQuad, self.JOcto = np.array(list(map( np.double, self.FileData[kw_ham_dict["bond-indep"]].replace("/"," ").replace("\n","").split(" ") )))
-            #extract the defect properties
+            #extract the defect properties (to be implemented)
             self.DefectQuad, self.DefectOcto, self.DefectLengthScale, self.NumDefects = np.array([0,0,0,0])
-        elif self.WhichModel == "kga":
-            self.Kx, self.Ky, self.Kz = np.array(list(map( np.double, self.FileData[kw_ham_dict["Kx Ky Kz"]].replace("/"," ").replace("\n","").split(" ") )))
+        elif self.WhichModel == "kga": #(to be implemented)
+            pass
+            # self.Kx, self.Ky, self.Kz = np.array(list(map( np.double, self.FileData[kw_ham_dict["Kx Ky Kz"]].replace("/"," ").replace("\n","").split(" ") )))
 
+        self.hMagnitude = np.double(self.FileData[kw_ham_dict["hMag"]])
+        self.hDirection = np.array(list(map( np.double, self.FileData[kw_ham_dict["hDir"]].replace("/"," ").replace("\n","").split(" ") )))
     def ExtractQuantities(self, kw_list):
         kw_index_list = []
 
-        #extract which lattice: 0 for tri, 1 for hc, 2 for FCC
         for kw in kw_list:
             for line_number, file_line in enumerate(self.FileData):
                 z = re.match(kw, file_line)
@@ -255,34 +256,45 @@ class MonteCarloOutput:
         elif tickaxis== 'y':
             cb.ax.set_yticklabels([f'${val:.0f}$' for val in ticks],usetex=usetex)
 
+        #plotting the range of the defect
         if self.WhichModel == "multipolar":
             if (self.NumDefects == 1) and ((self.DefectQuad!=0) or (self.DefectOcto!=0)):
                 defe = ptch.Circle(3*self.L1/6 *self.T1 + 3*self.L2/6 *self.T2 +(self.T1+self.T2)/3,
                 radius=self.DefectLengthScale*2, fill=True, alpha=0.1, linewidth=1.5,color='black')
                 ax.add_patch(defe)
-
-            plt.title(r'$J^{\tau}$' + f' = {self.JTau:.6f}, $J^Q$ = {self.JQuad:.6f}, $J^O$ = {self.JOcto:.6f}, $J^B$ = {self.JB:.6f}')
+            title_1 = '$J^{\\tau}$' + f' = {self.JTau:.6f}, $J^Q$ = {self.JQuad:.6f}, '+ \
+                      f'$J^O$ = {self.JOcto:.6f}, $J^B$ = {self.JB:.6f}'
+            title_2 = f'$h$ = {self.hMagnitude:.6f},' + r' $\hat{h}$ = ' + \
+                      f'({self.hDirection[0]:.3f}, {self.hDirection[1]:.3f}, {self.hDirection[2]:.3f})'
+            plt.title(title_1+'\n'+title_2)
 
         if self.Dimensions==2:
             if self.WhichLattice == 0:
+                #triangular lattice
                 shape = 3
-                length=1/sqrt3
-                rotate=0
-                offset = 2*(2*a1-a2)/3
+                length = 1/sqrt3
+                rotate = 0
+                numb = np.array(range(self.SublatticeVectors.shape[0]))
+                offset = a1/3+(a1-a2)/3
             elif self.WhichLattice == 1:
+                #honeycomb lattice
                 shape = 6
                 length = 1/sqrt3
                 rotate=0
-                offset = a1
+                offset = (a1+a2)/3
+                nnumb = np.array(range(int(self.SublatticeVectors.shape[0])))
+                numb = [i for i in nnumb if i%2==0]
+
             for x in range(0,self.L1):
                 for y in range(0,self.L2):
                     for z in range(0, self.L3):
-                        #used for rhom unit cell
-                        center = (x * self.T1 + y * self.T2 + z*self.T3)[:2]
-                        # print(center)
-                        hex2 = ptch.RegularPolygon(
-                        center+offset, shape, length, rotate, fill=False, linewidth=0.005,color='gray')
-                        ax.add_patch(hex2)
+                        for r in numb:
+                            center = x * self.T1 + y * self.T2 + z*self.T3
+                            hex2 = ptch.RegularPolygon(
+                                   (center+self.SublatticeVectors[r])[:2]+offset,
+                                   shape, length, rotate,
+                                   fill=False, linewidth=0.05, color='gray')
+                            ax.add_patch(hex2)
 
             #adding unit cell used for the calculation
             g = np.zeros(3)
@@ -291,6 +303,17 @@ class MonteCarloOutput:
             PlotLineBetweenTwoPoints(ax, self.T1, self.T1+self.T2)
             PlotLineBetweenTwoPoints(ax, self.T2, self.T1+self.T2)
         return fig
+
+    def calculate_FM_OP(self):
+        m = np.sum(self.SpinConfigSpinBasis, axis=0)/self.NumSites
+        op_FM = m.dot(self.hDirection)
+        return abs(op_FM)
+    def calculate_Neel_OP(self):
+        mask_Neel = np.array([1,-1]*int(self.NumSites/2))
+        m = np.sum(self.SpinConfigSpinBasis*mask_Neel[:,np.newaxis], axis=0)/self.NumSites
+        op_Neel = m.dot(self.hDirection)
+        return abs(op_Neel)
+    #calculates FM or neel OP
 
 
 class MuonSimulation(MonteCarloOutput):
